@@ -14,7 +14,7 @@
  - El sistema debe permitir que cualquier modificacion de una reserva realizada de un producto, se genere un estudio de presupuesto
  - El sistema debe permitir que solo halla un administrador
  - El sistema debe informar al usuario el estado de su compra
- - El sistema debe informar al administrador cuando se realiza alguan compra o reserva, sin la necesidad de entrar al sistema
+ - El sistema debe informar al administrador cuando se realiza alguna compra o reserva, sin la necesidad de entrar al sistema
  - El sistema debe informar al administrador cuando se realice una PQRS, para generar pronta solucion
  - El sistema debe informar al administrador cuando se esta agotando el stock
 
@@ -23,6 +23,3 @@
  - El sistema debe permitir que el administrador pueda modificar informacion de un producto, como stock, descripción, estado, etc
  - El sistema debe permitir que el administrador pueda actualizar el estado de una compra y agregar informacion relevante como guia de envio
  - El sistema debe permitir que el administrador pueda generar reportes de venta diarios, mensuales, anuales o en rango de fecha determinada.
- - El sistema debe permitir 
-
-# Requisitos No Funcionales
