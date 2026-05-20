@@ -14,7 +14,7 @@ import lombok.Setter;
 public class Factura {
     private String idFactura;
     private List<Map<String,Object>> listaAmigurumi;
-    private Usuario idUsuario;
+    private List<Map<String, Object>> usuario;
     private int total;
     private LocalDate fechaCompra;
     private String idEnvio;

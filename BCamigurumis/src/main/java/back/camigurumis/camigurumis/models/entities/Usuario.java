@@ -1,6 +1,7 @@
 package back.camigurumis.camigurumis.models.entities;
 
 import java.time.LocalDate;
+import java.util.List;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -17,4 +18,5 @@ public class Usuario {
     private Boolean isAdmin;
     private Boolean isActivo;
     private String password;
+    private List<String> rol;
 }
