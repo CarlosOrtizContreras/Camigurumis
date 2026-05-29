@@ -29,7 +29,6 @@ public class AmigurumiDao {
         this.db = firestoreConfig.getFirestore();
     }
 
-    @SuppressWarnings("null")
     public void ingresarAmigurumi(Amigurumi amigurumi) {
         Map<String, Object> data = new HashMap<>();
         data.put("idAmigurumi", amigurumi.getIdAmigurumi());
@@ -41,6 +40,7 @@ public class AmigurumiDao {
         data.put("fechaModificacion", amigurumi.getFechaModificacion().toString());
         data.put("partesModificables", amigurumi.getPartesModificables());
         data.put("precioBase", amigurumi.getPrecioBase());
+        data.put("imagen", amigurumi.getImagen());
 
         ApiFuture<WriteResult> addedDocRef = db.collection("amigurumis")
                 .document(String.valueOf(amigurumi.getIdAmigurumi())).set(data);
@@ -95,6 +95,7 @@ public class AmigurumiDao {
                 amigurumi.setFechaModificacion(LocalDate.parse(document.getData().get("fechaModificacion").toString()));
                 amigurumi.setPrecioBase(Integer.parseInt(document.getData().get("precioBase").toString()));
                 amigurumi.setPartesModificables((List<String>) document.getData().get("partesModificables"));
+                amigurumi.setImagen(document.getData().get("imagen").toString());
 
                 amigurumis.add(amigurumi);
             }
@@ -103,7 +104,7 @@ public class AmigurumiDao {
         return amigurumis;
     }
 
-    @SuppressWarnings({ "null" })
+    @SuppressWarnings({ })
     public void borrarAmigurumi(String idAmigurumi) {
         DocumentReference docRef = db.collection("amigurumis").document(String.valueOf(idAmigurumi));
 
@@ -131,7 +132,6 @@ public class AmigurumiDao {
         ingresarAmigurumi(amigurumi);
     }
 
-    @SuppressWarnings("null")
     public Amigurumi buscarAmigurumi(String idAmigurumi){
         DocumentReference docRef = db.collection("amigurumis").document(String.valueOf(idAmigurumi));
 
@@ -168,6 +168,7 @@ public class AmigurumiDao {
         amigurumi.setFechaModificacion(LocalDate.parse(document.getData().get("fechaModificacion").toString()));
         amigurumi.setPrecioBase(Integer.parseInt(document.getData().get("precioBase").toString()));
         amigurumi.setPartesModificables((List<String>) document.getData().get("partesModificables"));
+        amigurumi.setImagen(document.getData().get("imagen").toString());
 
         return amigurumi;
     }

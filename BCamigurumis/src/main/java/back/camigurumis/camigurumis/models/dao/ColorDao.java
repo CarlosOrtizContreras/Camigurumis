@@ -24,7 +24,6 @@ public class ColorDao {
         this.db = firestoreConfig.getFirestore();
     }
 
-    @SuppressWarnings("null")
     public void ingresarColor(Color color) {
         Map<String, Object> data = new HashMap<>();
         data.put("idColor", color.getIdColor());

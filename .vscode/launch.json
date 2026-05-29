@@ -1,0 +1,14 @@
+{
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Spring Boot-CamigurumisApplication<camigurumis>",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "mainClass": "back.camigurumis.camigurumis.CamigurumisApplication",
+            "projectName": "camigurumis",
+            "args": "",
+            "envFile": "${workspaceFolder}/.env"
+        }
+    ]
+}

@@ -22,4 +22,5 @@ public class Amigurumi {
     private LocalDate fechaModificacion;
     private List<String> partesModificables;
     private int precioBase;
+    private String imagen;
 }
