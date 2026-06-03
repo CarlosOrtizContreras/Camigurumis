@@ -26,12 +26,15 @@ export default function Carrito({ setPage }) {
       const idEnvio = uid();
       const idPago = uid();
 
+      // Guardar personalización con nombres legibles para que se vea en factura y pedidos
       const listaAmigurumi = items.map(i => ({
         idAmigurumi: i.amigurumi.idAmigurumi,
         nombre: i.amigurumi.nombre,
         cantidad: i.cantidad,
-        precioUnitario: i.precioUnitario,
-        personalizacion: i.personalizacion,
+        precioUnitario: i.precioUnitario,           // ya incluye precioExtra de partes
+        precioBase: i.amigurumi.precioBase,
+        precioExtras: i.precioExtrasTotal || 0,
+        personalizacion: i.personalizacion,         // { "Orejas": "Rosa", "Ojos": "Azul" }
       }));
 
       const usuarioData = [{
@@ -40,7 +43,7 @@ export default function Carrito({ setPage }) {
         correo: user.Correo,
       }];
 
-      // 1. Crear la factura (el backend también crea el envío, pero sin dirección)
+      // 1. Crear la factura (el backend también crea el envío sin dirección)
       await facturaApi.guardar({
         idFactura,
         listaAmigurumi,
@@ -51,7 +54,7 @@ export default function Carrito({ setPage }) {
         precioEnvio: envioData.costoEnvio,
       });
 
-      // 2. Actualizar el envío con la dirección real del cliente
+      // 2. Actualizar el envío con la dirección real
       await envioApi.actualizar({
         idEnvio,
         direccion: envioData.direccion.trim(),
@@ -79,7 +82,10 @@ export default function Carrito({ setPage }) {
           <h2>¡Pedido realizado!</h2>
           <p>ID del pedido: <code>{pedidoId}</code></p>
           <p>Te contactaremos pronto para coordinar tu amigurumi.</p>
-          <button className="btn-primary" onClick={() => setPage('catalogo')}>Seguir comprando</button>
+          <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', marginTop: '1.5rem', flexWrap: 'wrap' }}>
+            <button className="btn-primary" onClick={() => setPage('misPedidos')}>Ver mis pedidos</button>
+            <button className="btn-outline" onClick={() => setPage('catalogo')}>Seguir comprando</button>
+          </div>
         </div>
       </main>
     );
@@ -107,6 +113,15 @@ export default function Carrito({ setPage }) {
             <div className="cart-item" key={item.key}>
               <div className="cart-item-info">
                 <strong>{item.amigurumi.nombre}</strong>
+                {/* Precio base + extras */}
+                <div style={{ fontSize: '0.82rem', color: 'var(--muted)', marginTop: 2 }}>
+                  Base: ${item.amigurumi.precioBase.toLocaleString()}
+                  {item.precioExtrasTotal > 0 && (
+                    <span style={{ color: 'var(--rose)', marginLeft: 8 }}>
+                      + Extras: ${item.precioExtrasTotal.toLocaleString()}
+                    </span>
+                  )}
+                </div>
                 {Object.entries(item.personalizacion).length > 0 && (
                   <ul className="personalizacion-list">
                     {Object.entries(item.personalizacion).map(([p, v]) => (

@@ -4,16 +4,27 @@ import { createContext, useContext, useState } from 'react';
 const CartContext = createContext(null);
 
 export function CartProvider({ children }) {
-  const [items, setItems] = useState([]); // { amigurumi, personalizacion:{parteId, colorId}, cantidad, precioUnitario }
+  const [items, setItems] = useState([]);
 
-  function addItem(amigurumi, personalizacion = {}, cantidad = 1) {
+  /**
+   * personalizacion: { [nombreParte]: nombreColor }  — solo para display
+   * personalizacionConExtras: { [idParte]: { idColor, precioExtra } } — para calcular precio
+   */
+  function addItem(amigurumi, personalizacion = {}, cantidad = 1, precioExtrasTotal = 0) {
     setItems(prev => {
       const key = amigurumi.idAmigurumi + JSON.stringify(personalizacion);
       const existing = prev.find(i => i.key === key);
+      const precioUnitario = amigurumi.precioBase + precioExtrasTotal;
+
       if (existing) {
-        return prev.map(i => i.key === key ? { ...i, cantidad: i.cantidad + cantidad } : i);
+        return prev.map(i =>
+          i.key === key ? { ...i, cantidad: i.cantidad + cantidad } : i
+        );
       }
-      return [...prev, { key, amigurumi, personalizacion, cantidad, precioUnitario: amigurumi.precioBase }];
+      return [
+        ...prev,
+        { key, amigurumi, personalizacion, cantidad, precioUnitario, precioExtrasTotal },
+      ];
     });
   }
 

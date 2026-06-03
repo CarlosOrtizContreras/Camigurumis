@@ -29,7 +29,6 @@ export default function Catalogo({ setPage }) {
   function handleColorChange(idParte, idColor) {
     setPersonalizacion(p => {
       if (!idColor) {
-        // Si elige "Sin personalizar", eliminar esa parte de la selección
         const next = { ...p };
         delete next[idParte];
         return next;
@@ -39,7 +38,7 @@ export default function Catalogo({ setPage }) {
   }
 
   function handleAgregar() {
-    // Construir objeto de personalización con nombres legibles para mostrar en carrito
+    // Display map: { nombreParte: nombreColor }
     const persConNombres = {};
     Object.entries(personalizacion).forEach(([idParte, idColor]) => {
       const parteObj = (partes || []).find(p => p.idParte === idParte);
@@ -49,13 +48,19 @@ export default function Catalogo({ setPage }) {
       persConNombres[nombreParte] = nombreColor;
     });
 
-    addItem(selected, persConNombres);
+    // Calculate total extra price from selected parts
+    const precioExtrasTotal = Object.entries(personalizacion).reduce((sum, [idParte]) => {
+      const parteObj = (partes || []).find(p => p.idParte === idParte);
+      return sum + (parteObj ? parteObj.precioExtra : 0);
+    }, 0);
+
+    addItem(selected, persConNombres, 1, precioExtrasTotal);
     setSelected(null);
     setPersonalizacion({});
     setPage('carrito');
   }
 
-  // Obtener las partes modificables del amigurumi seleccionado, con sus colores disponibles
+  // Obtener las partes modificables del amigurumi seleccionado
   function getPartesDelAmigurumi(amigurumi) {
     if (!amigurumi?.partesModificables?.length) return [];
     return amigurumi.partesModificables
@@ -76,6 +81,12 @@ export default function Catalogo({ setPage }) {
   const partesAmigurumi = selected ? getPartesDelAmigurumi(selected) : [];
   const tienePersonalizacion = partesAmigurumi.length > 0;
   const partsSeleccionadas = Object.keys(personalizacion).length;
+
+  // Calculate price preview
+  const precioExtrasPreview = Object.entries(personalizacion).reduce((sum, [idParte]) => {
+    const parteObj = (partes || []).find(p => p.idParte === idParte);
+    return sum + (parteObj ? parteObj.precioExtra : 0);
+  }, 0);
 
   return (
     <main className="catalogo-page">
@@ -114,9 +125,21 @@ export default function Catalogo({ setPage }) {
 
             {/* Descripción y precio */}
             <p className="detalle-desc">{selected.descripcion}</p>
-            <p className="detalle-precio">
-              Precio base: <strong>${selected.precioBase?.toLocaleString()}</strong>
-            </p>
+            <div style={{ marginBottom: '1rem' }}>
+              <p className="detalle-precio">
+                Precio base: <strong>${selected.precioBase?.toLocaleString()}</strong>
+              </p>
+              {precioExtrasPreview > 0 && (
+                <p style={{ color: 'var(--rose)', fontSize: '0.9rem', fontWeight: 600 }}>
+                  Extras de personalización: +${precioExtrasPreview.toLocaleString()}
+                </p>
+              )}
+              {precioExtrasPreview > 0 && (
+                <p style={{ color: 'var(--plum)', fontSize: '1rem', fontWeight: 700, marginTop: '0.25rem' }}>
+                  Total: ${(selected.precioBase + precioExtrasPreview).toLocaleString()}
+                </p>
+              )}
+            </div>
 
             {/* Sección de personalización por partes */}
             {tienePersonalizacion ? (
@@ -154,7 +177,6 @@ export default function Catalogo({ setPage }) {
                         padding: '0.85rem 1rem',
                         transition: 'all 0.2s ease',
                       }}>
-                        {/* Encabezado de la parte */}
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
                           <div>
                             <span style={{ fontWeight: 700, color: 'var(--plum)', fontSize: '0.95rem' }}>
@@ -171,7 +193,6 @@ export default function Catalogo({ setPage }) {
                               </span>
                             )}
                           </div>
-                          {/* Indicador del color seleccionado */}
                           {colorObj && (
                             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                               <span style={{
@@ -187,26 +208,19 @@ export default function Catalogo({ setPage }) {
                           )}
                         </div>
 
-                        {/* Colores disponibles como swatches */}
                         {parte.coloresDisponibles.length > 0 ? (
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'center' }}>
-                            {/* Opción "ninguno" */}
+                            {/* Sin personalizar */}
                             <button
                               type="button"
                               onClick={() => handleColorChange(parte.idParte, '')}
                               style={{
-                                width: 32, height: 32,
-                                borderRadius: '50%',
-                                border: !colorSeleccionado
-                                  ? '3px solid var(--plum)'
-                                  : '2px solid var(--cream-dark)',
-                                background: '#fff',
-                                cursor: 'pointer',
+                                width: 32, height: 32, borderRadius: '50%',
+                                border: !colorSeleccionado ? '3px solid var(--plum)' : '2px solid var(--cream-dark)',
+                                background: '#fff', cursor: 'pointer',
                                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                fontSize: '0.7rem',
-                                color: 'var(--muted)',
-                                transition: 'border 0.15s',
-                                flexShrink: 0,
+                                fontSize: '0.7rem', color: 'var(--muted)',
+                                transition: 'border 0.15s', flexShrink: 0,
                               }}
                               title="Sin personalizar"
                             >
@@ -220,8 +234,7 @@ export default function Catalogo({ setPage }) {
                                 onClick={() => handleColorChange(parte.idParte, color.idColor)}
                                 title={`${color.nombre} (${color.codigoColor})`}
                                 style={{
-                                  width: 32, height: 32,
-                                  borderRadius: '50%',
+                                  width: 32, height: 32, borderRadius: '50%',
                                   background: color.codigoColor,
                                   border: colorSeleccionado === color.idColor
                                     ? '3px solid var(--plum)'
@@ -247,12 +260,9 @@ export default function Catalogo({ setPage }) {
                 {/* Resumen de personalización */}
                 {partsSeleccionadas > 0 && (
                   <div style={{
-                    marginTop: '0.75rem',
-                    background: '#fff',
-                    border: '1px solid var(--cream-dark)',
-                    borderRadius: 'var(--radius-sm)',
-                    padding: '0.6rem 0.9rem',
-                    fontSize: '0.85rem',
+                    marginTop: '0.75rem', background: '#fff',
+                    border: '1px solid var(--cream-dark)', borderRadius: 'var(--radius-sm)',
+                    padding: '0.6rem 0.9rem', fontSize: '0.85rem',
                   }}>
                     <strong style={{ color: 'var(--plum)', display: 'block', marginBottom: '0.3rem' }}>
                       Resumen de tu personalización:
@@ -266,15 +276,24 @@ export default function Catalogo({ setPage }) {
                           <span style={{
                             width: 10, height: 10, borderRadius: '50%',
                             background: colorObj.codigoColor,
-                            border: '1px solid rgba(0,0,0,0.15)',
-                            flexShrink: 0,
+                            border: '1px solid rgba(0,0,0,0.15)', flexShrink: 0,
                           }} />
                           <span style={{ color: 'var(--muted)' }}>
                             <strong style={{ color: 'var(--ink)' }}>{parteObj.nombre}</strong>: {colorObj.nombre}
+                            {parteObj.precioExtra > 0 && (
+                              <span style={{ color: 'var(--rose)', marginLeft: 4, fontWeight: 600 }}>
+                                +${parteObj.precioExtra.toLocaleString()}
+                              </span>
+                            )}
                           </span>
                         </div>
                       );
                     })}
+                    {precioExtrasPreview > 0 && (
+                      <div style={{ borderTop: '1px solid var(--cream-dark)', marginTop: '0.4rem', paddingTop: '0.4rem', fontWeight: 700, color: 'var(--plum)' }}>
+                        Total con extras: ${(selected.precioBase + precioExtrasPreview).toLocaleString()}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
