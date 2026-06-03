@@ -4,7 +4,7 @@ import { useFetch } from '../../hooks/useFetch';
 import { facturaApi } from '../../services/api';
 import { Spinner, ErrorMsg, EmptyState, ActionBar, Modal, Badge } from '../../components/UI';
 
-// ── PDF Generator (pure browser, no lib needed) ────────────────────────────
+// ── PDF Generator ─────────────────────────────────────────────────────────────
 function buildFacturaHTML(f) {
   const items = (f.listaAmigurumi || [])
     .map(item => `
@@ -104,13 +104,17 @@ function downloadFactura(factura) {
   const blob = new Blob([html], { type: 'text/html' });
   const url = URL.createObjectURL(blob);
   const win = window.open(url, '_blank');
-  // Give a moment for the new window to load, then trigger print dialog
   if (win) {
-    win.addEventListener('load', () => {
-      win.print();
-    });
+    win.addEventListener('load', () => { win.print(); });
   }
   setTimeout(() => URL.revokeObjectURL(url), 10000);
+}
+
+// Helper: obtener nombres de productos de una factura
+function getNombresProductos(factura) {
+  const items = factura.listaAmigurumi || [];
+  if (!items.length) return '—';
+  return items.map(i => i.nombre).join(', ');
 }
 
 export default function AdminFacturas() {
@@ -120,10 +124,12 @@ export default function AdminFacturas() {
 
   const filtered = (data || []).filter(f => {
     const q = search.toLowerCase();
+    const nombres = getNombresProductos(f).toLowerCase();
     return (
       f.idFactura.toLowerCase().includes(q) ||
       f.usuario?.[0]?.nombre?.toLowerCase().includes(q) ||
-      f.fechaCompra?.includes(q)
+      f.fechaCompra?.includes(q) ||
+      nombres.includes(q)
     );
   });
 
@@ -136,10 +142,10 @@ export default function AdminFacturas() {
         <h3>Facturas</h3>
         <input
           className="search-input"
-          placeholder="🔍 Buscar por ID, cliente o fecha…"
+          placeholder="🔍 Buscar por ID, producto, cliente o fecha…"
           value={search}
           onChange={e => setSearch(e.target.value)}
-          style={{ width: 260 }}
+          style={{ width: 280 }}
         />
       </ActionBar>
 
@@ -151,8 +157,8 @@ export default function AdminFacturas() {
             <tr>
               <th>ID</th>
               <th>Fecha</th>
+              <th>Productos</th>
               <th>Total</th>
-              <th>Envío</th>
               <th>Cliente</th>
               <th>Acciones</th>
             </tr>
@@ -162,8 +168,19 @@ export default function AdminFacturas() {
               <tr key={f.idFactura}>
                 <td><code>{f.idFactura.slice(0, 8).toUpperCase()}</code></td>
                 <td>{f.fechaCompra}</td>
+                {/* Nombres de productos — columna nueva */}
+                <td style={{ maxWidth: 200 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    {(f.listaAmigurumi || []).map((item, i) => (
+                      <span key={i} style={{ fontSize: '0.85rem', color: 'var(--ink)' }}>
+                        <strong>{item.nombre}</strong>
+                        <span style={{ color: 'var(--muted)', marginLeft: 4 }}>x{item.cantidad}</span>
+                      </span>
+                    ))}
+                    {!(f.listaAmigurumi?.length) && <span style={{ color: 'var(--muted)' }}>—</span>}
+                  </div>
+                </td>
                 <td><Badge text={`$${f.total?.toLocaleString()}`} color="green" /></td>
-                <td>${f.precioEnvio?.toLocaleString()}</td>
                 <td>{f.usuario?.[0]?.nombre || '—'}</td>
                 <td style={{ display: 'flex', gap: '0.4rem' }}>
                   <button className="btn-sm btn-outline" onClick={() => setDetalle(f)}>Ver</button>
@@ -198,6 +215,23 @@ export default function AdminFacturas() {
               <span>${(item.precioUnitario * item.cantidad)?.toLocaleString()}</span>
             </div>
           ))}
+          {/* Personalización si existe */}
+          {detalle.listaAmigurumi?.some(item => item.personalizacion && Object.keys(item.personalizacion).length > 0) && (
+            <div style={{ marginTop: '0.5rem' }}>
+              <h4>Personalización</h4>
+              {detalle.listaAmigurumi.map((item, i) => {
+                const pers = item.personalizacion || {};
+                const entries = Object.entries(pers).filter(([, v]) => v);
+                if (!entries.length) return null;
+                return (
+                  <div key={i} style={{ marginBottom: '0.4rem', fontSize: '0.85rem' }}>
+                    <strong>{item.nombre}:</strong>{' '}
+                    {entries.map(([parte, color]) => `${parte}: ${color}`).join(' · ')}
+                  </div>
+                );
+              })}
+            </div>
+          )}
           <div className="summary-row" style={{ marginTop: '0.75rem', paddingTop: '0.5rem', borderTop: '1px solid var(--cream-dark)' }}>
             <span>Envío</span><span>${detalle.precioEnvio?.toLocaleString()}</span>
           </div>

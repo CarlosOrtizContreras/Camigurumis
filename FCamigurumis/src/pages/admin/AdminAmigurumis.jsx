@@ -1,7 +1,7 @@
 // src/pages/admin/AdminAmigurumis.jsx
 import { useState } from 'react';
 import { useFetch } from '../../hooks/useFetch';
-import { amigurumiApi } from '../../services/api';
+import { amigurumiApi, parteApi } from '../../services/api';
 import { Spinner, ErrorMsg, EmptyState, Modal, FormField, ActionBar } from '../../components/UI';
 
 const EMPTY = {
@@ -23,12 +23,18 @@ function validateForm(form, isNew) {
 
 export default function AdminAmigurumis() {
   const { data, loading, error, reload } = useFetch(amigurumiApi.listar);
+  // Cargar las partes habilitadas para el selector
+  const { data: partesDisponibles } = useFetch(parteApi.listar);
+
   const [form, setForm] = useState(null);
   const [isNew, setIsNew] = useState(false);
   const [saving, setSaving] = useState(false);
   const [imgFile, setImgFile] = useState(null);
   const [formErrors, setFormErrors] = useState({});
   const [saveError, setSaveError] = useState('');
+
+  // Solo partes activas
+  const partesActivas = (partesDisponibles || []).filter(p => p.isActivo);
 
   function openNew() {
     setForm({ ...EMPTY, partesModificables: [] });
@@ -60,7 +66,6 @@ export default function AdminAmigurumis() {
     }
     setFormErrors({});
 
-    // Check for duplicate ID if new
     if (isNew) {
       const exists = (data || []).some(a => a.idAmigurumi === form.idAmigurumi.trim());
       if (exists) {
@@ -71,15 +76,15 @@ export default function AdminAmigurumis() {
 
     setSaving(true);
     try {
-      // Ensure partesModificables is a clean array of strings
       const payload = {
         ...form,
         idAmigurumi: form.idAmigurumi.trim(),
         nombre: form.nombre.trim(),
         descripcion: form.descripcion.trim(),
         precioBase: Number(form.precioBase),
+        // partesModificables ya es array de idParte strings
         partesModificables: Array.isArray(form.partesModificables)
-          ? form.partesModificables.map(p => p.trim()).filter(Boolean)
+          ? form.partesModificables.filter(Boolean)
           : [],
       };
 
@@ -94,7 +99,7 @@ export default function AdminAmigurumis() {
       }
       reload();
       setForm(null);
-    } catch (err) {
+    } catch {
       setSaveError('Error al guardar. Verifica los datos e intenta de nuevo.');
     } finally {
       setSaving(false);
@@ -112,10 +117,15 @@ export default function AdminAmigurumis() {
     if (formErrors[k]) setFormErrors(prev => ({ ...prev, [k]: '' }));
   }
 
-  function handlePartesChange(value) {
-    // Split by comma, trim whitespace, keep as array
-    const arr = value.split(',').map(s => s.trim());
-    setField('partesModificables', arr);
+  // Toggle una parte en la lista de partesModificables (guarda el idParte)
+  function toggleParte(idParte) {
+    setForm(f => {
+      const current = Array.isArray(f.partesModificables) ? f.partesModificables : [];
+      const updated = current.includes(idParte)
+        ? current.filter(id => id !== idParte)
+        : [...current, idParte];
+      return { ...f, partesModificables: updated };
+    });
   }
 
   if (loading) return <Spinner />;
@@ -143,7 +153,10 @@ export default function AdminAmigurumis() {
                   <td>${a.precioBase?.toLocaleString()}</td>
                   <td style={{ fontSize: '0.8rem', color: 'var(--muted)' }}>
                     {Array.isArray(a.partesModificables) && a.partesModificables.length > 0
-                      ? a.partesModificables.filter(Boolean).join(', ')
+                      ? a.partesModificables.filter(Boolean).map(idP => {
+                          const p = (partesDisponibles || []).find(x => x.idParte === idP);
+                          return p ? p.nombre : idP;
+                        }).join(', ')
                       : '—'}
                   </td>
                   <td>{a.disponibilidad ? '✅' : '❌'}</td>
@@ -204,22 +217,56 @@ export default function AdminAmigurumis() {
               {formErrors.precioBase && <span style={{ color: '#c0364f', fontSize: '0.82rem' }}>{formErrors.precioBase}</span>}
             </FormField>
 
-            <FormField label="Partes modificables (separadas por coma)">
-              <input
-                value={Array.isArray(form.partesModificables)
-                  ? form.partesModificables.join(', ')
-                  : form.partesModificables || ''}
-                onChange={e => handlePartesChange(e.target.value)}
-                placeholder="Ej: cabeza, cuerpo, orejas"
-              />
-              {Array.isArray(form.partesModificables) && form.partesModificables.filter(Boolean).length > 0 && (
-                <div style={{ marginTop: '0.4rem', display: 'flex', gap: '0.3rem', flexWrap: 'wrap' }}>
-                  {form.partesModificables.filter(Boolean).map((p, i) => (
-                    <span key={i} style={{
-                      background: 'var(--cream-dark)', padding: '2px 8px',
-                      borderRadius: 99, fontSize: '0.78rem', color: 'var(--plum)'
-                    }}>{p}</span>
-                  ))}
+            {/* Selector de partes habilitadas mediante checkboxes */}
+            <FormField label="Partes modificables">
+              {partesActivas.length === 0 ? (
+                <span style={{ color: 'var(--muted)', fontSize: '0.85rem' }}>
+                  No hay partes activas. Crea partes primero en la sección "Partes".
+                </span>
+              ) : (
+                <div className="color-checkboxes" style={{ flexDirection: 'column', gap: '0.5rem' }}>
+                  {partesActivas.map(parte => {
+                    const checked = (form.partesModificables || []).includes(parte.idParte);
+                    return (
+                      <label key={parte.idParte} className="color-check" style={{ alignItems: 'flex-start' }}>
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => toggleParte(parte.idParte)}
+                          style={{ marginTop: 2 }}
+                        />
+                        <span>
+                          <strong style={{ color: 'var(--plum)' }}>{parte.nombre}</strong>
+                          {parte.descripcion && (
+                            <span style={{ color: 'var(--muted)', fontSize: '0.8rem', marginLeft: 6 }}>
+                              — {parte.descripcion}
+                            </span>
+                          )}
+                          {parte.precioExtra > 0 && (
+                            <span style={{ color: 'var(--rose)', fontSize: '0.8rem', marginLeft: 6 }}>
+                              +${parte.precioExtra.toLocaleString()}
+                            </span>
+                          )}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
+              {/* Vista previa de las partes seleccionadas */}
+              {(form.partesModificables || []).filter(Boolean).length > 0 && (
+                <div style={{ marginTop: '0.6rem', display: 'flex', gap: '0.3rem', flexWrap: 'wrap' }}>
+                  {(form.partesModificables || []).filter(Boolean).map(idP => {
+                    const p = partesActivas.find(x => x.idParte === idP);
+                    return p ? (
+                      <span key={idP} style={{
+                        background: 'var(--cream-dark)', padding: '2px 8px',
+                        borderRadius: 99, fontSize: '0.78rem', color: 'var(--plum)'
+                      }}>
+                        {p.nombre}
+                      </span>
+                    ) : null;
+                  })}
                 </div>
               )}
             </FormField>

@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
-import { facturaApi, pagoApi } from '../services/api';
+import { facturaApi, pagoApi, envioApi } from '../services/api';
 import { FormField, Spinner } from '../components/UI';
 
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
@@ -19,6 +19,7 @@ export default function Carrito({ setPage }) {
   async function handleCheckout(e) {
     e.preventDefault();
     if (!user) { setPage('login'); return; }
+    if (!envioData.direccion.trim()) { setError('Por favor ingresa una dirección de envío'); return; }
     setLoading(true); setError('');
     try {
       const idFactura = uid();
@@ -39,6 +40,7 @@ export default function Carrito({ setPage }) {
         correo: user.Correo,
       }];
 
+      // 1. Crear la factura (el backend también crea el envío, pero sin dirección)
       await facturaApi.guardar({
         idFactura,
         listaAmigurumi,
@@ -49,12 +51,22 @@ export default function Carrito({ setPage }) {
         precioEnvio: envioData.costoEnvio,
       });
 
+      // 2. Actualizar el envío con la dirección real del cliente
+      await envioApi.actualizar({
+        idEnvio,
+        direccion: envioData.direccion.trim(),
+        costoEnvio: envioData.costoEnvio,
+        estadoEnvio: [],
+      });
+
+      // 3. Registrar el pago
       await pagoApi.guardar({ idPago, idFactura, estadoPago: true });
 
       setPedidoId(idFactura);
       clearCart();
       setStep('success');
-    } catch {
+    } catch (err) {
+      console.error(err);
       setError('Error al procesar el pedido. Intenta de nuevo.');
     } finally { setLoading(false); }
   }
@@ -130,7 +142,7 @@ export default function Carrito({ setPage }) {
               <FormField label="Dirección de envío">
                 <input
                   required
-                  placeholder="Calle # Número"
+                  placeholder="Calle # Número, Barrio, Ciudad"
                   value={envioData.direccion}
                   onChange={e => setEnvioData(d => ({ ...d, direccion: e.target.value }))}
                 />
