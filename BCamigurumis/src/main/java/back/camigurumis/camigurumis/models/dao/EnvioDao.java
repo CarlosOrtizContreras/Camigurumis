@@ -35,8 +35,7 @@ public class EnvioDao {
         data.put("idEnvio", envio.getIdEnvio());
         data.put("direccion", envio.getDireccion());
         data.put("costoEnvio", envio.getCostoEnvio());
-
-        data.put("estadoEnvio", envio.getEstadoEnvio());
+        data.put("estadoEnvio", envio.getEstadoEnvio() != null ? envio.getEstadoEnvio() : new ArrayList<>());
 
         ApiFuture<WriteResult> future = db.collection("envios")
                 .document(envio.getIdEnvio())
@@ -57,7 +56,6 @@ public class EnvioDao {
         List<Envio> lista = new ArrayList<>();
 
         ApiFuture<QuerySnapshot> future = db.collection("envios").get();
-
         List<QueryDocumentSnapshot> documents = null;
 
         try {
@@ -68,58 +66,64 @@ public class EnvioDao {
             System.out.println("Mensaje: " + causa.getMessage());
         }
 
-        if (!documents.isEmpty()) {
+        if (documents != null && !documents.isEmpty()) {
             for (QueryDocumentSnapshot doc : documents) {
-
-                Envio envio = new Envio();
-
-                envio.setIdEnvio(doc.getId().toString());
-                envio.setDireccion(doc.getData().get("direccion").toString());
-                envio.setCostoEnvio(Integer.parseInt(doc.getData().get("costoEnvio").toString()));
-
-            
-                envio.setEstadoEnvio(
-                        (List<Map<String, Object>>) doc.getData().get("estadoEnvio"));
-
-                lista.add(envio);
+                Envio envio = obtenerDatosEnvio(doc);
+                if (envio != null) lista.add(envio);
             }
         }
 
         return lista;
     }
 
+    /**
+     * Retorna null si el documento NO existe en Firestore.
+     * Esto evita el NullPointerException en getData() cuando el doc no existe.
+     */
     public Envio buscarEnvio(String idEnvio) {
 
         DocumentReference docRef = db.collection("envios").document(idEnvio);
 
-        DocumentSnapshot doc = null;
-
         try {
-            doc = docRef.get().get();
+            DocumentSnapshot doc = docRef.get().get();
+
+            // ⚠️ FIX CRÍTICO: verificar existencia antes de leer datos
+            if (!doc.exists()) {
+                return null;
+            }
+
+            return obtenerDatosEnvio(doc);
+
         } catch (InterruptedException | ExecutionException e) {
             Throwable causa = e.getCause();
             System.out.println("Tipo: " + causa.getClass().getName());
             System.out.println("Mensaje: " + causa.getMessage());
         }
 
-        return obtenerDatosEnvio(doc);
+        return null;
     }
 
-    @SuppressWarnings({ "null", "unchecked" })
+    @SuppressWarnings({ "unchecked", "null" })
     private Envio obtenerDatosEnvio(DocumentSnapshot doc) {
+        if (doc == null || !doc.exists() || doc.getData() == null) {
+            return null;
+        }
 
         Envio envio = new Envio();
+        envio.setIdEnvio(doc.getId());
 
-        envio.setIdEnvio(doc.getId().toString());
-        envio.setDireccion(doc.getData().get("direccion").toString());
-        envio.setCostoEnvio(Integer.parseInt(doc.getData().get("costoEnvio").toString()));
+        Object direccion = doc.getData().get("direccion");
+        envio.setDireccion(direccion != null ? direccion.toString() : "");
 
-        envio.setEstadoEnvio(
-                (List<Map<String, Object>>) doc.getData().get("estadoEnvio"));
+        Object costo = doc.getData().get("costoEnvio");
+        envio.setCostoEnvio(costo != null ? Integer.parseInt(costo.toString()) : 0);
+
+        Object estados = doc.getData().get("estadoEnvio");
+        envio.setEstadoEnvio(estados instanceof List ? (List<Map<String, Object>>) estados : new ArrayList<>());
 
         return envio;
     }
-    
+
     @SuppressWarnings({ "unchecked", "null" })
     public void agregarEstado(String idEnvio, String idEstadoEnvio, String novedad) {
 
@@ -127,6 +131,11 @@ public class EnvioDao {
 
         try {
             DocumentSnapshot doc = docRef.get().get();
+
+            if (!doc.exists()) {
+                System.out.println("Envío no encontrado: " + idEnvio);
+                return;
+            }
 
             List<Map<String, Object>> estados = (List<Map<String, Object>>) doc.getData().get("estadoEnvio");
 
@@ -137,11 +146,11 @@ public class EnvioDao {
             Map<String, Object> nuevoEstado = new HashMap<>();
             nuevoEstado.put("idEstadoEnvio", idEstadoEnvio);
             nuevoEstado.put("fecha", LocalDate.now().toString());
-            nuevoEstado.put("novedad", novedad);
+            nuevoEstado.put("novedad", novedad != null ? novedad : "");
 
             estados.add(nuevoEstado);
 
-            docRef.update("estadoEnvio", estados);
+            docRef.update("estadoEnvio", estados).get();
 
         } catch (Exception e) {
             e.printStackTrace();
