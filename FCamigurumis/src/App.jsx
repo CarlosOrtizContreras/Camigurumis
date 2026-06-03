@@ -1,35 +1,57 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+// src/App.jsx
+import { useState } from 'react';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import { CartProvider } from './context/CartContext';
+import Navbar from './components/Navbar';
+import Home from './pages/Home';
+import Catalogo from './pages/Catalogo';
+import Login from './pages/Login';
+import Carrito from './pages/Carrito';
+import Perfil from './pages/Perfil';
+import MisPedidos from './pages/MisPedidos';
+import Admin from './pages/Admin';
 
-function App() {
-  const [count, setCount] = useState(0)
+function AppContent() {
+  const [page, setPage] = useState('home');
+  const { user, isAdmin } = useAuth();
+
+  // Guard: redirect to login for protected routes
+  const protectedPage = (requiredAdmin, Component) => {
+    if (!user) return <Login setPage={setPage} />;
+    if (requiredAdmin && !isAdmin) return <Home setPage={setPage} />;
+    return <Component setPage={setPage} />;
+  };
+
+  const renderPage = () => {
+    switch (page) {
+      case 'home':       return <Home setPage={setPage} />;
+      case 'catalogo':   return <Catalogo setPage={setPage} />;
+      case 'login':      return <Login setPage={setPage} />;
+      case 'carrito':    return <Carrito setPage={setPage} />;
+      case 'perfil':     return protectedPage(false, Perfil);
+      case 'misPedidos': return protectedPage(false, MisPedidos);
+      case 'admin':      return protectedPage(true, Admin);
+      default:           return <Home setPage={setPage} />;
+    }
+  };
 
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+    <div className="app">
+      <Navbar page={page} setPage={setPage} />
+      {renderPage()}
+      <footer className="footer">
+        <p>🧶 Camigurumis · Hecho con amor · {new Date().getFullYear()}</p>
+      </footer>
+    </div>
+  );
 }
 
-export default App
+export default function App() {
+  return (
+    <AuthProvider>
+      <CartProvider>
+        <AppContent />
+      </CartProvider>
+    </AuthProvider>
+  );
+}

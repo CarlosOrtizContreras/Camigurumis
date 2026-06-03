@@ -61,7 +61,6 @@ public class UsuarioDao {
         }
     }
 
-    @SuppressWarnings({ "null" })
     public List<Usuario> listarUsuarios() {
 
         List<Usuario> usuarios = new ArrayList<>();
@@ -208,7 +207,6 @@ public class UsuarioDao {
         }
     }
 
-    @SuppressWarnings({ "null" })
     private Usuario obtenerDatosUsuario(DocumentSnapshot document) {
 
         Usuario usuario = new Usuario();

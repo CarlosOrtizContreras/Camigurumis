@@ -1,6 +1,5 @@
 package back.camigurumis.camigurumis.controller;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,13 +25,12 @@ public class UsuarioController {
     private UsuarioDao usuarioDao;
 
     @GetMapping("/listarUsarios")
-    public ResponseEntity<ArrayList<Usuario>> listarUsuarios() {
+    public ResponseEntity<List<Usuario>> listarUsuarios() {
         List<Usuario> listaCompleta = usuarioDao.listarUsuarios();
-        ArrayList<Usuario> soloUsuario = new ArrayList<>();
         if (listaCompleta.isEmpty()) {
             return ResponseEntity.notFound().build();
         } else {
-            return ResponseEntity.ok(soloUsuario);
+            return ResponseEntity.ok(listaCompleta);
 
         }
 

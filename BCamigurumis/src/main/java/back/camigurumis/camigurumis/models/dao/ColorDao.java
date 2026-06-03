@@ -6,6 +6,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
+import org.springframework.stereotype.Service;
+
 import com.google.api.core.ApiFuture;
 import com.google.cloud.firestore.DocumentReference;
 import com.google.cloud.firestore.DocumentSnapshot;
@@ -17,6 +19,7 @@ import com.google.cloud.firestore.WriteResult;
 import back.camigurumis.camigurumis.config.FirestoreConfig;
 import back.camigurumis.camigurumis.models.entities.Color;
 
+@Service
 public class ColorDao {
     private final Firestore db;
 
@@ -50,7 +53,6 @@ public class ColorDao {
         }
     }
 
-    @SuppressWarnings("null")
     public List<Color> listarColores() {
 
         List<Color> colores = new ArrayList<>();
@@ -88,7 +90,6 @@ public class ColorDao {
         return colores;
     }
 
-    @SuppressWarnings("null")
     public void borrarColor(String idColor) {
         DocumentReference docRef = db.collection("colores").document(String.valueOf(idColor));
 
@@ -115,8 +116,7 @@ public class ColorDao {
         ingresarColor(color);
     }
 
-    @SuppressWarnings("null")
-    public Color buscarColor(String idColor) {
+    public Color obtenerDatosColor(String idColor) {
         DocumentReference docRef = db.collection("colores").document(String.valueOf(idColor));
 
         ApiFuture<DocumentSnapshot> future = docRef.get();
@@ -138,8 +138,33 @@ public class ColorDao {
        return obtenerDatosColor(document);
     }
 
+    public Boolean buscarColor(String idColor) {
+        DocumentReference docRef = db.collection("colores").document(String.valueOf(idColor));
 
-    @SuppressWarnings("null")
+        ApiFuture<DocumentSnapshot> future = docRef.get();
+        DocumentSnapshot document = null;
+        try {
+            document = future.get();
+
+        } catch (InterruptedException e) {
+            Throwable causa = e.getCause();
+
+            System.out.println("Tipo de error: " + causa.getClass().getName());
+            System.out.println("Mensaje: " + causa.getMessage());
+        } catch (ExecutionException e) {
+            Throwable causa = e.getCause();
+
+            System.out.println("Tipo de error: " + causa.getClass().getName());
+            System.out.println("Mensaje: " + causa.getMessage());
+        }
+        if(document.exists()){
+            return true;
+        }else{
+            return false;
+        }
+    }
+
+
     private Color obtenerDatosColor(DocumentSnapshot document) {
         Color color = new Color();
         color.setIdColor(document.getId().toString());
