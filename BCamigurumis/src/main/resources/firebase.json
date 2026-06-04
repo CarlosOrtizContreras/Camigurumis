@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "camigurumis-82d23",
+  "private_key_id": "8ec617dc7a765ee6584ea67f955731c13c41838b",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQDo+X/QDOz02ifs\nlKxL0kk91robnHZVenS+I8HsNJx3k0XFMkvv96ijP29ZTQPzQqAyCoUCS5SXifsq\n6LzS/PUlKFd2SDBKc+HLFKnAfQfjV8JTpVcQ3bjsP19yG7mbs23LnvCgrzWlzexO\nq0TIHeWDcDNebUNEYaOlObA7yg8DmeOVXKN3MnKQPQrr9iVJgvrzMxVhF+hgeXip\n7gGvwW+0iTBL/bIxeIa/UafrTgLyzkxVmxY1owrV19mnQ2oPgHklU83E8gKHaEPv\nf68sUHNpZjhF5McgnWaDeJN+D9fvFjBr0rWK7Xg09flnQYkLS6IXkbRW8R7JJW0E\nuX6xseHzAgMBAAECggEAPoTt4rQFRrPgcOF41yQIWZrs+InlS40AFSJdYPjBYGla\nGNAlhrEMRTq5s9oyDC699I/UH8iOiJgTmfE48tnFI4KO7gPzSZeNaUUTRL+IxV6A\nnJfLJJCLloJvJ5z/EyR0e2ccpdI+8E6xcm8NlzJGrB4I+vcRTSFym90+SN0xaEJ5\nm/j3FSmBUZAfHSL55aB3QW9+7/hk8em9kjwiPOaPfpg3PcB4gm7J9OCVIVP6NhrP\nzTNw8u4iuQISWAr+RJZzS6j6k3xxCcNULZOB6Mp2CTVVsxThsqDtuo4qR99eaGTq\nJHbDlytHR9A039BCV1MRKA55KCdo7wtU8kvke2m0AQKBgQD+e0XCNsC9f/gYC44N\nxsCfzqfZRGtlr09eltKyfOfa/Gie08+NXYRClJEUTYdexntryg9jko4JGl7YoEgL\nM9aerjW5UFloijBJpMzi3j5R4auS3F6n4vQOVpqekJzxMHEUtfOIKMrsYaamubUQ\nRdoXU9h0Ljc+ixmjqqF7N/uuAQKBgQDqXV/VtPGIay5VRdU72U4co8xAgE5n53a0\nQRvMIlEnh+gfJT5A92xdJnq8X/9yQjsBndqXGxjEbx0iecvefjPCtT1I8/K2G9bu\nrWTi3Nyf+F/JovRJX6fawH9jMLQfpftneFCgp6hEe++466EF2yfLFizlheRg+IlK\nT461Rmm38wKBgHon7GV86OpOGmZYbZkZVe+gQJwfproJ/Dx4g61gHd/Vl9bd79x5\nDnrzW+z2BkwtVKN6PAbdG8cs3Gh6D/soqBZFo85PzotLAkDnld41No8Rl82IcPuA\nCw0y70e8PUndqfp6GOu8QSRU/606qbqk/TqDafzjDmu8U9NnndpLFkoBAoGAIHEs\ngvi5NpkfoM455j7+gRhrfcJFGD0CQZGBt5BIi6BUkXsmUvftGDfrZYgkZDymzmJ7\nj89AbnCzJ8KUZggyQhG0mhSq1GqmJgP6oyzPnZVULSVRi5aiNbXP7HshdAAV/Qy6\nnIKY2GIPnRmBAL6Fk6dOL7eJFaNR3eeFabKFj+ECgYAwl0v0ug0KfNlhkjPu8cmM\nm6kLYbDOkh+WPNySJSQbpTGjD7wcUVJQpxtWDNKHXuC/MP4ZGw8Ci7i21MK/2Jt1\nfHeU6DibW7sHne/ZwgBeeFc71ruzttm0lrer9dCbvOlrB56NcgBjdqiNQXtOa/Xx\nosp13O0SZI5bygVx38ky4Q==\n-----END PRIVATE KEY-----\n",
+  "client_email": "firebase-adminsdk-fbsvc@camigurumis-82d23.iam.gserviceaccount.com",
+  "client_id": "107834369602416247915",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/firebase-adminsdk-fbsvc%40camigurumis-82d23.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}
