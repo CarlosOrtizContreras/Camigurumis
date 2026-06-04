@@ -5,7 +5,7 @@
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>4.1.0-SNAPSHOT</version>
+		<version>3.5.5</version>
 		<relativePath/>
 	</parent>
 	<groupId>back.camigurumis</groupId>
@@ -16,7 +16,7 @@
 	<description/>
 
 	<properties>
-		<java.version>25</java.version>
+		<java.version>21</java.version>
 	</properties>
 
 	<dependencies>
