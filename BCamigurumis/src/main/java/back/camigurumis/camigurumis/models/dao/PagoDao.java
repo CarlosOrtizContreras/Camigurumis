@@ -2,7 +2,6 @@ package back.camigurumis.camigurumis.models.dao;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
@@ -17,7 +16,6 @@ import com.google.cloud.firestore.QueryDocumentSnapshot;
 import com.google.cloud.firestore.QuerySnapshot;
 import com.google.cloud.firestore.WriteResult;
 
-import back.camigurumis.camigurumis.config.FirestoreConfig;
 import back.camigurumis.camigurumis.models.entities.Pago;
 
 @Service
@@ -25,94 +23,114 @@ public class PagoDao {
 
     private final Firestore db;
 
-    public PagoDao(FirestoreConfig firestoreConfig) {
-        this.db = firestoreConfig.getFirestore();
+    // ✅ INYECCIÓN CORRECTA
+    public PagoDao(Firestore db) {
+        this.db = db;
     }
 
+    // ---------------- INGRESAR ----------------
     public void ingresarPago(Pago pago) {
 
-        Map<String, Object> data = new HashMap<>();
-        data.put("idPago", pago.getIdPago());
-        data.put("fechaPago", pago.getFechaPago().toString());
-        data.put("idFactura", pago.getIdFactura());
-        data.put("estadoPago", pago.getEstadoPago());
+        Map<String, Object> data = Map.of(
+                "idPago", pago.getIdPago(),
+                "fechaPago", pago.getFechaPago() != null ? pago.getFechaPago().toString() : null,
+                "idFactura", pago.getIdFactura(),
+                "estadoPago", pago.getEstadoPago());
 
         ApiFuture<WriteResult> future = db.collection("pagos")
                 .document(pago.getIdPago())
                 .set(data);
 
         try {
-            System.out.println("Pago guardado en: " + future.get().getUpdateTime());
+            System.out.println("✔ Pago guardado: " + future.get().getUpdateTime());
         } catch (InterruptedException | ExecutionException e) {
-            Throwable causa = e.getCause();
-            System.out.println("Tipo de error: " + causa.getClass().getName());
-            System.out.println("Mensaje: " + causa.getMessage());
+            System.out.println("❌ Error guardando pago: " + e.getMessage());
         }
     }
 
+    // ---------------- LISTAR ----------------
     public List<Pago> listarPagos() {
 
         List<Pago> lista = new ArrayList<>();
 
-        ApiFuture<QuerySnapshot> future = db.collection("pagos").get();
-
         try {
+            ApiFuture<QuerySnapshot> future = db.collection("pagos").get();
             List<QueryDocumentSnapshot> documentos = future.get().getDocuments();
 
+            if (documentos == null || documentos.isEmpty()) {
+                return lista;
+            }
+
             for (QueryDocumentSnapshot doc : documentos) {
-                lista.add(obtenerDatos(doc));
+                Pago pago = convertir(doc);
+                if (pago != null)
+                    lista.add(pago);
             }
 
         } catch (InterruptedException | ExecutionException e) {
-            Throwable causa = e.getCause();
-            System.out.println("Tipo de error: " + causa.getClass().getName());
-            System.out.println("Mensaje: " + causa.getMessage());
+            System.out.println("❌ Error listando pagos: " + e.getMessage());
         }
 
         return lista;
     }
 
+    // ---------------- BUSCAR ----------------
     public Pago buscarPago(String id) {
 
-        DocumentReference docRef = db.collection("pagos").document(id);
-
         try {
-            DocumentSnapshot doc = docRef.get().get();
-            return obtenerDatos(doc);
+            DocumentSnapshot doc = db.collection("pagos")
+                    .document(id)
+                    .get()
+                    .get();
+
+            if (!doc.exists()) {
+                return null;
+            }
+
+            return convertir(doc);
 
         } catch (InterruptedException | ExecutionException e) {
-            Throwable causa = e.getCause();
-            System.out.println("Tipo de error: " + causa.getClass().getName());
-            System.out.println("Mensaje: " + causa.getMessage());
+            System.out.println("❌ Error buscando pago: " + e.getMessage());
         }
 
         return null;
     }
 
-
+    // ---------------- ELIMINAR ----------------
     public void eliminarPago(String id) {
 
-        DocumentReference docRef = db.collection("pagos").document(id);
-
-        ApiFuture<WriteResult> future = docRef.delete();
-
         try {
-            System.out.println("Pago eliminado en: " + future.get().getUpdateTime());
+            ApiFuture<WriteResult> future = db.collection("pagos")
+                    .document(id)
+                    .delete();
+
+            System.out.println("✔ Pago eliminado: " + future.get().getUpdateTime());
+
         } catch (InterruptedException | ExecutionException e) {
-            Throwable causa = e.getCause();
-            System.out.println("Tipo de error: " + causa.getClass().getName());
-            System.out.println("Mensaje: " + causa.getMessage());
+            System.out.println("❌ Error eliminando pago: " + e.getMessage());
         }
     }
 
-    private Pago obtenerDatos(DocumentSnapshot document) {
+    // ---------------- CONVERTIR ----------------
+    private Pago convertir(DocumentSnapshot document) {
+
+        if (document == null || !document.exists() || document.getData() == null) {
+            return null;
+        }
+
+        Map<String, Object> data = document.getData();
 
         Pago pago = new Pago();
 
         pago.setIdPago(document.getId());
-        pago.setFechaPago(LocalDate.parse(document.getString("fechaPago")));
-        pago.setIdFactura(document.getString("idFactura"));
-        pago.setEstadoPago(document.getBoolean("estadoPago"));
+
+        Object fecha = data.get("fechaPago");
+        pago.setFechaPago(fecha != null ? LocalDate.parse(fecha.toString()) : null);
+
+        pago.setIdFactura(String.valueOf(data.get("idFactura")));
+
+        Object estado = data.get("estadoPago");
+        pago.setEstadoPago(estado != null ? Boolean.parseBoolean(estado.toString()) : false);
 
         return pago;
     }

@@ -17,7 +17,6 @@ import com.google.cloud.firestore.QueryDocumentSnapshot;
 import com.google.cloud.firestore.QuerySnapshot;
 import com.google.cloud.firestore.WriteResult;
 
-import back.camigurumis.camigurumis.config.FirestoreConfig;
 import back.camigurumis.camigurumis.models.entities.Factura;
 
 @Service
@@ -25,19 +24,20 @@ public class FacturaDao {
 
     private final Firestore db;
 
-    public FacturaDao(FirestoreConfig firestoreConfig) {
-        this.db = firestoreConfig.getFirestore();
+    // ✅ INYECCIÓN CORRECTA
+    public FacturaDao(Firestore db) {
+        this.db = db;
     }
 
+    // ---------------- INGRESAR ----------------
     public void ingresarFactura(Factura factura) {
 
         Map<String, Object> data = new HashMap<>();
         data.put("idFactura", factura.getIdFactura());
         data.put("total", factura.getTotal());
-        data.put("precioEnvio", factura.getPrecioEnvio()); 
+        data.put("precioEnvio", factura.getPrecioEnvio());
         data.put("fechaCompra", factura.getFechaCompra().toString());
         data.put("idEnvio", factura.getIdEnvio());
-
         data.put("usuario", factura.getUsuario());
         data.put("listaAmigurumi", factura.getListaAmigurumi());
 
@@ -46,83 +46,83 @@ public class FacturaDao {
                 .set(data);
 
         try {
-            System.out.println("Factura guardada: " + future.get().getUpdateTime());
+            System.out.println("✔ Factura guardada: " + future.get().getUpdateTime());
         } catch (InterruptedException | ExecutionException e) {
-            Throwable causa = e.getCause();
-            System.out.println("Tipo: " + causa.getClass().getName());
-            System.out.println("Mensaje: " + causa.getMessage());
+            System.out.println("❌ Error guardando factura: " + e.getMessage());
         }
     }
 
-    @SuppressWarnings({ "null", "unchecked" })
+    // ---------------- LISTAR ----------------
     public List<Factura> listarFacturas() {
 
         List<Factura> lista = new ArrayList<>();
 
-        ApiFuture<QuerySnapshot> future = db.collection("facturas").get();
-        List<QueryDocumentSnapshot> documents = null;
-
         try {
-            documents = future.get().getDocuments();
-        } catch (InterruptedException | ExecutionException e) {
-            e.printStackTrace();
-        }
+            ApiFuture<QuerySnapshot> future = db.collection("facturas").get();
+            List<QueryDocumentSnapshot> documents = future.get().getDocuments();
 
-        if (!documents.isEmpty()) {
-            for (QueryDocumentSnapshot doc : documents) {
-
-                Factura factura = new Factura();
-
-                factura.setIdFactura(doc.getId().toString());
-                factura.setTotal(Integer.parseInt(doc.getData().get("total").toString()));
-                factura.setPrecioEnvio(Integer.parseInt(doc.getData().get("precioEnvio").toString())); 
-                factura.setFechaCompra(LocalDate.parse(doc.getData().get("fechaCompra").toString()));
-                factura.setIdEnvio(doc.getData().get("idEnvio").toString());
-
-                factura.setUsuario(
-                        (List<Map<String, Object>>) doc.getData().get("usuario"));
-
-                factura.setListaAmigurumi(
-                        (List<Map<String, Object>>) doc.getData().get("listaAmigurumi"));
-
-                lista.add(factura);
+            if (documents == null || documents.isEmpty()) {
+                return lista;
             }
+
+            for (QueryDocumentSnapshot doc : documents) {
+                Factura factura = convertir(doc);
+                if (factura != null)
+                    lista.add(factura);
+            }
+
+        } catch (InterruptedException | ExecutionException e) {
+            System.out.println("❌ Error listando facturas: " + e.getMessage());
         }
 
         return lista;
     }
 
+    // ---------------- BUSCAR ----------------
     public Factura buscarFactura(String idFactura) {
 
-        DocumentReference docRef = db.collection("facturas").document(idFactura);
-
-        DocumentSnapshot doc = null;
-
         try {
-            doc = docRef.get().get();
+            DocumentSnapshot doc = db.collection("facturas")
+                    .document(idFactura)
+                    .get()
+                    .get();
+
+            if (!doc.exists()) {
+                return null;
+            }
+
+            return convertir(doc);
+
         } catch (InterruptedException | ExecutionException e) {
-            e.printStackTrace();
+            System.out.println("❌ Error buscando factura: " + e.getMessage());
         }
 
-        return obtenerDatosFactura(doc);
+        return null;
     }
 
-    @SuppressWarnings({ "null", "unchecked" })
-    private Factura obtenerDatosFactura(DocumentSnapshot doc) {
+    // ---------------- CONVERTIR ----------------
+    private Factura convertir(DocumentSnapshot doc) {
+
+        if (doc == null || !doc.exists() || doc.getData() == null) {
+            return null;
+        }
+
+        Map<String, Object> data = doc.getData();
 
         Factura factura = new Factura();
 
-        factura.setIdFactura(doc.getId().toString());
-        factura.setTotal(Integer.parseInt(doc.getData().get("total").toString()));
-        factura.setPrecioEnvio(Integer.parseInt(doc.getData().get("precioEnvio").toString())); 
-        factura.setFechaCompra(LocalDate.parse(doc.getData().get("fechaCompra").toString()));
-        factura.setIdEnvio(doc.getData().get("idEnvio").toString());
+        factura.setIdFactura(doc.getId());
+        factura.setTotal(Integer.parseInt(String.valueOf(data.get("total"))));
+        factura.setPrecioEnvio(Integer.parseInt(String.valueOf(data.get("precioEnvio"))));
+        factura.setFechaCompra(LocalDate.parse(String.valueOf(data.get("fechaCompra"))));
+        factura.setIdEnvio(String.valueOf(data.get("idEnvio")));
 
-        factura.setUsuario(
-                (List<Map<String, Object>>) doc.getData().get("usuario"));
+        // ⚠️ Manejo seguro de estructuras complejas
+        Object usuario = data.get("usuario");
+        factura.setUsuario(usuario instanceof List ? (List<Map<String, Object>>) usuario : new ArrayList<>());
 
-        factura.setListaAmigurumi(
-                (List<Map<String, Object>>) doc.getData().get("listaAmigurumi"));
+        Object lista = data.get("listaAmigurumi");
+        factura.setListaAmigurumi(lista instanceof List ? (List<Map<String, Object>>) lista : new ArrayList<>());
 
         return factura;
     }

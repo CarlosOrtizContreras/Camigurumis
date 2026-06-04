@@ -2,7 +2,6 @@ package back.camigurumis.camigurumis.models.dao;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
@@ -17,7 +16,6 @@ import com.google.cloud.firestore.QueryDocumentSnapshot;
 import com.google.cloud.firestore.QuerySnapshot;
 import com.google.cloud.firestore.WriteResult;
 
-import back.camigurumis.camigurumis.config.FirestoreConfig;
 import back.camigurumis.camigurumis.models.entities.Usuario;
 
 @Service
@@ -25,206 +23,174 @@ public class UsuarioDao {
 
     private final Firestore db;
 
-    public UsuarioDao(FirestoreConfig firestoreConfig) {
-        this.db = firestoreConfig.getFirestore();
+    // ✅ INYECCIÓN CORRECTA
+    public UsuarioDao(Firestore db) {
+        this.db = db;
     }
 
+    // ---------------- INGRESAR ----------------
     public void ingresarUsuario(Usuario usuario) {
 
-        Map<String, Object> data = new HashMap<>();
-        data.put("idUsuario", usuario.getIdUsuario());
-        data.put("nombre", usuario.getNombre());
-        data.put("primerApellido", usuario.getPrimerApellido());
-        data.put("segundoApellido", usuario.getSegundoApellido());
-        data.put("Telefono", usuario.getTelefono());
-        data.put("Correo", usuario.getCorreo());
-        data.put("fechaCreacion", usuario.getFechaCreacion().toString());
-        data.put("isAdmin", usuario.getIsAdmin());
-        data.put("isActivo", usuario.getIsActivo());
-        data.put("password", usuario.getPassword());
-
-
-        ApiFuture<WriteResult> addedDocRef = db.collection("usuarios")
-                .document(String.valueOf(usuario.getIdUsuario()))
-                .set(data);
+        Map<String, Object> data = Map.of(
+                "idUsuario", usuario.getIdUsuario(),
+                "nombre", usuario.getNombre(),
+                "primerApellido", usuario.getPrimerApellido(),
+                "segundoApellido", usuario.getSegundoApellido(),
+                "telefono", usuario.getTelefono(),
+                "correo", usuario.getCorreo(),
+                "fechaCreacion", usuario.getFechaCreacion() != null ? usuario.getFechaCreacion().toString() : null,
+                "isAdmin", usuario.getIsAdmin(),
+                "isActivo", usuario.getIsActivo(),
+                "password", usuario.getPassword());
 
         try {
-            System.out.println("Added document with ID: " + addedDocRef.get().getUpdateTime());
-        } catch (InterruptedException e) {
-            Throwable causa = e.getCause();
-            System.out.println("Tipo de error: " + causa.getClass().getName());
-            System.out.println("Mensaje: " + causa.getMessage());
-        } catch (ExecutionException e) {
-            Throwable causa = e.getCause();
-            System.out.println("Tipo de error: " + causa.getClass().getName());
-            System.out.println("Mensaje: " + causa.getMessage());
+            ApiFuture<WriteResult> future = db.collection("usuarios")
+                    .document(usuario.getIdUsuario())
+                    .set(data);
+
+            System.out.println("✔ Usuario guardado: " + future.get().getUpdateTime());
+
+        } catch (InterruptedException | ExecutionException e) {
+            System.out.println("❌ Error guardando usuario: " + e.getMessage());
         }
     }
 
+    // ---------------- LISTAR ----------------
     public List<Usuario> listarUsuarios() {
 
         List<Usuario> usuarios = new ArrayList<>();
 
-        ApiFuture<QuerySnapshot> future = db.collection("usuarios").get();
-
-        List<QueryDocumentSnapshot> documents = null;
-
         try {
-            documents = future.get().getDocuments();
-        } catch (InterruptedException e) {
-            Throwable causa = e.getCause();
-            System.out.println("Tipo de error: " + causa.getClass().getName());
-            System.out.println("Mensaje: " + causa.getMessage());
-        } catch (ExecutionException e) {
-            Throwable causa = e.getCause();
-            System.out.println("Tipo de error: " + causa.getClass().getName());
-            System.out.println("Mensaje: " + causa.getMessage());
-        }
+            ApiFuture<QuerySnapshot> future = db.collection("usuarios").get();
+            List<QueryDocumentSnapshot> documents = future.get().getDocuments();
 
-        if (!documents.isEmpty()) {
-            for (QueryDocumentSnapshot document : documents) {
-
-                Usuario usuario = new Usuario();
-
-                usuario.setIdUsuario(document.getId().toString());
-                usuario.setNombre(document.getData().get("nombre").toString());
-                usuario.setPrimerApellido(document.getData().get("primerApellido").toString());
-                usuario.setSegundoApellido(document.getData().get("segundoApellido").toString());
-                usuario.setTelefono(document.getData().get("Telefono").toString());
-                usuario.setCorreo(document.getData().get("Correo").toString());
-                usuario.setFechaCreacion(LocalDate.parse(document.getData().get("fechaCreacion").toString()));
-                usuario.setIsAdmin(Boolean.parseBoolean(document.getData().get("isAdmin").toString()));
-                usuario.setIsActivo(Boolean.parseBoolean(document.getData().get("isActivo").toString()));
-                usuario.setPassword("");
-
-
-                usuarios.add(usuario);
+            if (documents == null || documents.isEmpty()) {
+                return usuarios;
             }
+
+            for (QueryDocumentSnapshot doc : documents) {
+                Usuario usuario = convertir(doc);
+
+                if (usuario != null) {
+                    usuario.setPassword(""); // ocultar password
+                    usuarios.add(usuario);
+                }
+            }
+
+        } catch (InterruptedException | ExecutionException e) {
+            System.out.println("❌ Error listando usuarios: " + e.getMessage());
         }
 
         return usuarios;
     }
 
-    public void borrarUsuario(String idUsuario) {
-
-        DocumentReference docRef = db.collection("usuarios").document(String.valueOf(idUsuario));
-
-        ApiFuture<DocumentSnapshot> future = docRef.get();
-        DocumentSnapshot document = null;
+    // ---------------- BUSCAR ----------------
+    public Usuario buscarDatosUnicoUsuario(String idUsuario) {
 
         try {
-            document = future.get();
-        } catch (InterruptedException e) {
-            Throwable causa = e.getCause();
-            System.out.println("Tipo de error: " + causa.getClass().getName());
-            System.out.println("Mensaje: " + causa.getMessage());
-        } catch (ExecutionException e) {
-            Throwable causa = e.getCause();
-            System.out.println("Tipo de error: " + causa.getClass().getName());
-            System.out.println("Mensaje: " + causa.getMessage());
+            DocumentSnapshot doc = db.collection("usuarios")
+                    .document(idUsuario)
+                    .get()
+                    .get();
+
+            if (!doc.exists()) {
+                return null;
+            }
+
+            Usuario usuario = convertir(doc);
+
+            if (usuario != null) {
+                usuario.setPassword(""); // ocultar
+            }
+
+            return usuario;
+
+        } catch (InterruptedException | ExecutionException e) {
+            System.out.println("❌ Error buscando usuario: " + e.getMessage());
         }
 
-        Usuario usuario = obtenerDatosUsuario(document);
+        return null;
+    }
+
+    // ---------------- BUSCAR CON PASSWORD ----------------
+    public Usuario buscarDatosUnicoUsuarioContrasena(String idUsuario) {
+
+        try {
+            DocumentSnapshot doc = db.collection("usuarios")
+                    .document(idUsuario)
+                    .get()
+                    .get();
+
+            if (!doc.exists()) {
+                return null;
+            }
+
+            return convertir(doc);
+
+        } catch (InterruptedException | ExecutionException e) {
+            System.out.println("❌ Error buscando usuario: " + e.getMessage());
+        }
+
+        return null;
+    }
+
+    // ---------------- EXISTE ----------------
+    public Boolean buscarUsuario(String idUsuario) {
+
+        try {
+            DocumentSnapshot doc = db.collection("usuarios")
+                    .document(idUsuario)
+                    .get()
+                    .get();
+
+            return doc.exists();
+
+        } catch (InterruptedException | ExecutionException e) {
+            System.out.println("❌ Error verificando usuario: " + e.getMessage());
+        }
+
+        return false;
+    }
+
+    // ---------------- ELIMINAR (SOFT DELETE) ----------------
+    public void borrarUsuario(String idUsuario) {
+
+        Usuario usuario = buscarDatosUnicoUsuarioContrasena(idUsuario);
+
+        if (usuario == null)
+            return;
 
         usuario.setIsActivo(false);
 
         ingresarUsuario(usuario);
     }
 
-    public Usuario buscarDatosUnicoUsuario(String idUsuario) {
+    // ---------------- CONVERTIR ----------------
+    private Usuario convertir(DocumentSnapshot document) {
 
-        DocumentReference docRef = db.collection("usuarios").document(String.valueOf(idUsuario));
-
-        ApiFuture<DocumentSnapshot> future = docRef.get();
-        DocumentSnapshot document = null;
-
-        try {
-            document = future.get();
-        } catch (InterruptedException e) {
-            Throwable causa = e.getCause();
-            System.out.println("Tipo de error: " + causa.getClass().getName());
-            System.out.println("Mensaje: " + causa.getMessage());
-        } catch (ExecutionException e) {
-            Throwable causa = e.getCause();
-            System.out.println("Tipo de error: " + causa.getClass().getName());
-            System.out.println("Mensaje: " + causa.getMessage());
+        if (document == null || !document.exists() || document.getData() == null) {
+            return null;
         }
 
-            Usuario usuario = obtenerDatosUsuario(document);
-            usuario.setPassword("");
-            return usuario;
-        
-
-        
-    }
-
-    public Usuario buscarDatosUnicoUsuarioContrasena(String idUsuario) {
-
-        DocumentReference docRef = db.collection("usuarios").document(String.valueOf(idUsuario));
-
-        ApiFuture<DocumentSnapshot> future = docRef.get();
-        DocumentSnapshot document = null;
-
-        try {
-            document = future.get();
-        } catch (InterruptedException e) {
-            Throwable causa = e.getCause();
-            System.out.println("Tipo de error: " + causa.getClass().getName());
-            System.out.println("Mensaje: " + causa.getMessage());
-        } catch (ExecutionException e) {
-            Throwable causa = e.getCause();
-            System.out.println("Tipo de error: " + causa.getClass().getName());
-            System.out.println("Mensaje: " + causa.getMessage());
-        }
-
-        
-        return obtenerDatosUsuario(document);
-
-    }
-
-    public Boolean buscarUsuario (String idUsuario){
-        DocumentReference docRef = db.collection("usuarios").document(String.valueOf(idUsuario));
-
-        ApiFuture<DocumentSnapshot> future = docRef.get();
-        
-        DocumentSnapshot document = null;
-
-        try {
-            document = future.get();
-        } catch (InterruptedException e) {
-            Throwable causa = e.getCause();
-            System.out.println("Tipo de error: " + causa.getClass().getName());
-            System.out.println("Mensaje: " + causa.getMessage());
-        } catch (ExecutionException e) {
-            Throwable causa = e.getCause();
-            System.out.println("Tipo de error: " + causa.getClass().getName());
-            System.out.println("Mensaje: " + causa.getMessage());
-        }
-        if (document.exists()) {
-            return true;
-        } else {
-            return false;
-        }
-    }
-
-    private Usuario obtenerDatosUsuario(DocumentSnapshot document) {
+        Map<String, Object> data = document.getData();
 
         Usuario usuario = new Usuario();
 
-        usuario.setIdUsuario(document.getId().toString());
-        usuario.setNombre(document.getData().get("nombre").toString());
-        usuario.setPrimerApellido(document.getData().get("primerApellido").toString());
-        usuario.setSegundoApellido(document.getData().get("segundoApellido").toString());
-        usuario.setTelefono(document.getData().get("Telefono").toString());
-        usuario.setCorreo(document.getData().get("Correo").toString());
-        usuario.setFechaCreacion(LocalDate.parse(document.getData().get("fechaCreacion").toString()));
-        usuario.setIsAdmin(Boolean.parseBoolean(document.getData().get("isAdmin").toString()));
-        usuario.setIsActivo(Boolean.parseBoolean(document.getData().get("isActivo").toString()));
-        usuario.setPassword(document.getData().get("password").toString());
+        usuario.setIdUsuario(document.getId());
+        usuario.setNombre(String.valueOf(data.get("nombre")));
+        usuario.setPrimerApellido(String.valueOf(data.get("primerApellido")));
+        usuario.setSegundoApellido(String.valueOf(data.get("segundoApellido")));
+        usuario.setTelefono(String.valueOf(data.get("telefono")));
+        usuario.setCorreo(String.valueOf(data.get("correo")));
 
+        Object fecha = data.get("fechaCreacion");
+        usuario.setFechaCreacion(fecha != null ? LocalDate.parse(fecha.toString()) : null);
+
+        usuario.setIsAdmin(Boolean.parseBoolean(String.valueOf(data.get("isAdmin"))));
+        usuario.setIsActivo(Boolean.parseBoolean(String.valueOf(data.get("isActivo"))));
+
+        usuario.setPassword(String.valueOf(data.get("password")));
 
         return usuario;
     }
-
-    
 }

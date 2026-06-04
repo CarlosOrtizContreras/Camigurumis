@@ -17,7 +17,6 @@ import com.google.cloud.firestore.QueryDocumentSnapshot;
 import com.google.cloud.firestore.QuerySnapshot;
 import com.google.cloud.firestore.WriteResult;
 
-import back.camigurumis.camigurumis.config.FirestoreConfig;
 import back.camigurumis.camigurumis.models.entities.Envio;
 
 @Service
@@ -25,10 +24,12 @@ public class EnvioDao {
 
     private final Firestore db;
 
-    public EnvioDao(FirestoreConfig firestoreConfig) {
-        this.db = firestoreConfig.getFirestore();
+    // ✅ INYECCIÓN CORRECTA
+    public EnvioDao(Firestore db) {
+        this.db = db;
     }
 
+    // ---------------- INGRESAR ----------------
     public void ingresarEnvio(Envio envio) {
 
         Map<String, Object> data = new HashMap<>();
@@ -42,44 +43,39 @@ public class EnvioDao {
                 .set(data);
 
         try {
-            System.out.println("Envio guardado: " + future.get().getUpdateTime());
+            System.out.println("✔ Envío guardado: " + future.get().getUpdateTime());
         } catch (InterruptedException | ExecutionException e) {
-            Throwable causa = e.getCause();
-            System.out.println("Tipo: " + causa.getClass().getName());
-            System.out.println("Mensaje: " + causa.getMessage());
+            System.out.println("❌ Error guardando envío: " + e.getMessage());
         }
     }
 
-    @SuppressWarnings({ "null", "unchecked" })
+    // ---------------- LISTAR ----------------
     public List<Envio> listarEnvios() {
 
         List<Envio> lista = new ArrayList<>();
 
-        ApiFuture<QuerySnapshot> future = db.collection("envios").get();
-        List<QueryDocumentSnapshot> documents = null;
-
         try {
-            documents = future.get().getDocuments();
-        } catch (InterruptedException | ExecutionException e) {
-            Throwable causa = e.getCause();
-            System.out.println("Tipo: " + causa.getClass().getName());
-            System.out.println("Mensaje: " + causa.getMessage());
-        }
+            ApiFuture<QuerySnapshot> future = db.collection("envios").get();
+            List<QueryDocumentSnapshot> documents = future.get().getDocuments();
 
-        if (documents != null && !documents.isEmpty()) {
-            for (QueryDocumentSnapshot doc : documents) {
-                Envio envio = obtenerDatosEnvio(doc);
-                if (envio != null) lista.add(envio);
+            if (documents == null || documents.isEmpty()) {
+                return lista;
             }
+
+            for (QueryDocumentSnapshot doc : documents) {
+                Envio envio = convertir(doc);
+                if (envio != null)
+                    lista.add(envio);
+            }
+
+        } catch (InterruptedException | ExecutionException e) {
+            System.out.println("❌ Error listando envíos: " + e.getMessage());
         }
 
         return lista;
     }
 
-    /**
-     * Retorna null si el documento NO existe en Firestore.
-     * Esto evita el NullPointerException en getData() cuando el doc no existe.
-     */
+    // ---------------- BUSCAR ----------------
     public Envio buscarEnvio(String idEnvio) {
 
         DocumentReference docRef = db.collection("envios").document(idEnvio);
@@ -87,61 +83,37 @@ public class EnvioDao {
         try {
             DocumentSnapshot doc = docRef.get().get();
 
-            // ⚠️ FIX CRÍTICO: verificar existencia antes de leer datos
             if (!doc.exists()) {
                 return null;
             }
 
-            return obtenerDatosEnvio(doc);
+            return convertir(doc);
 
         } catch (InterruptedException | ExecutionException e) {
-            Throwable causa = e.getCause();
-            System.out.println("Tipo: " + causa.getClass().getName());
-            System.out.println("Mensaje: " + causa.getMessage());
+            System.out.println("❌ Error buscando envío: " + e.getMessage());
         }
 
         return null;
     }
 
-    @SuppressWarnings({ "unchecked", "null" })
-    private Envio obtenerDatosEnvio(DocumentSnapshot doc) {
-        if (doc == null || !doc.exists() || doc.getData() == null) {
-            return null;
-        }
-
-        Envio envio = new Envio();
-        envio.setIdEnvio(doc.getId());
-
-        Object direccion = doc.getData().get("direccion");
-        envio.setDireccion(direccion != null ? direccion.toString() : "");
-
-        Object costo = doc.getData().get("costoEnvio");
-        envio.setCostoEnvio(costo != null ? Integer.parseInt(costo.toString()) : 0);
-
-        Object estados = doc.getData().get("estadoEnvio");
-        envio.setEstadoEnvio(estados instanceof List ? (List<Map<String, Object>>) estados : new ArrayList<>());
-
-        return envio;
-    }
-
-    @SuppressWarnings({ "unchecked", "null" })
+    // ---------------- AGREGAR ESTADO ----------------
+    @SuppressWarnings("unchecked")
     public void agregarEstado(String idEnvio, String idEstadoEnvio, String novedad) {
 
-        DocumentReference docRef = db.collection("envios").document(idEnvio);
-
         try {
+            DocumentReference docRef = db.collection("envios").document(idEnvio);
             DocumentSnapshot doc = docRef.get().get();
 
             if (!doc.exists()) {
-                System.out.println("Envío no encontrado: " + idEnvio);
+                System.out.println("❌ Envío no encontrado");
                 return;
             }
 
-            List<Map<String, Object>> estados = (List<Map<String, Object>>) doc.getData().get("estadoEnvio");
+            Object raw = doc.get("estadoEnvio");
 
-            if (estados == null) {
-                estados = new ArrayList<>();
-            }
+            List<Map<String, Object>> estados = (raw instanceof List)
+                    ? (List<Map<String, Object>>) raw
+                    : new ArrayList<>();
 
             Map<String, Object> nuevoEstado = new HashMap<>();
             nuevoEstado.put("idEstadoEnvio", idEstadoEnvio);
@@ -153,7 +125,31 @@ public class EnvioDao {
             docRef.update("estadoEnvio", estados).get();
 
         } catch (Exception e) {
-            e.printStackTrace();
+            System.out.println("❌ Error agregando estado: " + e.getMessage());
         }
+    }
+
+    // ---------------- CONVERTIR ----------------
+    private Envio convertir(DocumentSnapshot doc) {
+
+        if (doc == null || !doc.exists() || doc.getData() == null) {
+            return null;
+        }
+
+        Envio envio = new Envio();
+
+        envio.setIdEnvio(doc.getId());
+        envio.setDireccion(String.valueOf(doc.get("direccion")));
+        envio.setCostoEnvio(Integer.parseInt(String.valueOf(doc.get("costoEnvio"))));
+
+        Object estados = doc.get("estadoEnvio");
+
+        if (estados instanceof List) {
+            envio.setEstadoEnvio((List<Map<String, Object>>) estados);
+        } else {
+            envio.setEstadoEnvio(new ArrayList<>());
+        }
+
+        return envio;
     }
 }

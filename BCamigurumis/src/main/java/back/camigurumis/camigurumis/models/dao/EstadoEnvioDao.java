@@ -16,7 +16,6 @@ import com.google.cloud.firestore.QueryDocumentSnapshot;
 import com.google.cloud.firestore.QuerySnapshot;
 import com.google.cloud.firestore.WriteResult;
 
-import back.camigurumis.camigurumis.config.FirestoreConfig;
 import back.camigurumis.camigurumis.models.entities.EstadoEnvio;
 
 @Service
@@ -24,10 +23,12 @@ public class EstadoEnvioDao {
 
     private final Firestore db;
 
-    public EstadoEnvioDao(FirestoreConfig firestoreConfig) {
-        this.db = firestoreConfig.getFirestore();
+    // ✅ INYECCIÓN CORRECTA
+    public EstadoEnvioDao(Firestore db) {
+        this.db = db;
     }
 
+    // ---------------- INGRESAR ----------------
     public void ingresarEstadoEnvio(EstadoEnvio estadoEnvio) {
 
         Map<String, Object> data = new HashMap<>();
@@ -40,69 +41,79 @@ public class EstadoEnvioDao {
                 .set(data);
 
         try {
-            System.out.println("EstadoEnvio guardado en: " + future.get().getUpdateTime());
+            System.out.println("✔ Guardado en: " + future.get().getUpdateTime());
         } catch (InterruptedException | ExecutionException e) {
-            Throwable causa = e.getCause();
-            System.out.println("Tipo de error: " + causa.getClass().getName());
-            System.out.println("Mensaje: " + causa.getMessage());
+            System.out.println("❌ Error guardando: " + e.getMessage());
         }
     }
 
+    // ---------------- LISTAR ----------------
     public List<EstadoEnvio> listarEstadoEnvio() {
 
         List<EstadoEnvio> lista = new ArrayList<>();
 
-        ApiFuture<QuerySnapshot> future = db.collection("estadoEnvio").get();
-
         try {
+            ApiFuture<QuerySnapshot> future = db.collection("estadoEnvio").get();
             List<QueryDocumentSnapshot> documentos = future.get().getDocuments();
 
+            if (documentos == null || documentos.isEmpty()) {
+                return lista;
+            }
+
             for (QueryDocumentSnapshot doc : documentos) {
-                lista.add(obtenerDatos(doc));
+                lista.add(convertir(doc));
             }
 
         } catch (InterruptedException | ExecutionException e) {
-            Throwable causa = e.getCause();
-            System.out.println("Tipo de error: " + causa.getClass().getName());
-            System.out.println("Mensaje: " + causa.getMessage());
+            System.out.println("❌ Error listando: " + e.getMessage());
         }
 
         return lista;
     }
 
+    // ---------------- BUSCAR ----------------
     public EstadoEnvio buscarEstadoEnvio(String id) {
 
-        DocumentReference docRef = db.collection("estadoEnvio").document(id);
-
         try {
-            DocumentSnapshot doc = docRef.get().get();
-            return obtenerDatos(doc);
+            DocumentSnapshot doc = db.collection("estadoEnvio")
+                    .document(id)
+                    .get()
+                    .get();
+
+            if (!doc.exists()) {
+                return null;
+            }
+
+            return convertir(doc);
 
         } catch (InterruptedException | ExecutionException e) {
-            Throwable causa = e.getCause();
-            System.out.println("Tipo de error: " + causa.getClass().getName());
-            System.out.println("Mensaje: " + causa.getMessage());
+            System.out.println("❌ Error buscando: " + e.getMessage());
         }
 
         return null;
     }
 
+    // ---------------- ELIMINAR ----------------
     public void eliminarEstadoEnvio(String id) {
 
-        DocumentReference docRef = db.collection("estadoEnvio").document(id);
-
-        ApiFuture<WriteResult> future = docRef.delete();
-
         try {
-            System.out.println("EstadoEnvio eliminado en: " + future.get().getUpdateTime());
+            ApiFuture<WriteResult> future = db.collection("estadoEnvio")
+                    .document(id)
+                    .delete();
+
+            System.out.println("✔ Eliminado en: " + future.get().getUpdateTime());
+
         } catch (InterruptedException | ExecutionException e) {
-            Throwable causa = e.getCause();
-            System.out.println("Tipo de error: " + causa.getClass().getName());
-            System.out.println("Mensaje: " + causa.getMessage());
+            System.out.println("❌ Error eliminando: " + e.getMessage());
         }
     }
 
-    private EstadoEnvio obtenerDatos(DocumentSnapshot document) {
+    // ---------------- CONVERTIR ----------------
+    private EstadoEnvio convertir(DocumentSnapshot document) {
+
+        if (document == null || !document.exists()) {
+            return null;
+        }
 
         EstadoEnvio estado = new EstadoEnvio();
 

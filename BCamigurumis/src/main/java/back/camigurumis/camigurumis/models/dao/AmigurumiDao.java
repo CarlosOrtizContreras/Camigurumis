@@ -17,7 +17,6 @@ import com.google.cloud.firestore.QueryDocumentSnapshot;
 import com.google.cloud.firestore.QuerySnapshot;
 import com.google.cloud.firestore.WriteResult;
 
-import back.camigurumis.camigurumis.config.FirestoreConfig;
 import back.camigurumis.camigurumis.models.entities.Amigurumi;
 
 @Service
@@ -25,11 +24,14 @@ public class AmigurumiDao {
 
     private final Firestore db;
 
-    public AmigurumiDao(FirestoreConfig firestoreConfig) {
-        this.db = firestoreConfig.getFirestore();
+    // ✅ INYECCIÓN CORRECTA
+    public AmigurumiDao(Firestore db) {
+        this.db = db;
     }
 
+    // ---------------- INSERTAR ----------------
     public void ingresarAmigurumi(Amigurumi amigurumi) {
+
         Map<String, Object> data = new HashMap<>();
         data.put("idAmigurumi", amigurumi.getIdAmigurumi());
         data.put("nombre", amigurumi.getNombre());
@@ -42,134 +44,100 @@ public class AmigurumiDao {
         data.put("precioBase", amigurumi.getPrecioBase());
         data.put("imagen", amigurumi.getImagen());
 
-        ApiFuture<WriteResult> addedDocRef = db.collection("amigurumis")
-                .document(String.valueOf(amigurumi.getIdAmigurumi())).set(data);
+        ApiFuture<WriteResult> result = db.collection("amigurumis")
+                .document(String.valueOf(amigurumi.getIdAmigurumi()))
+                .set(data);
 
         try {
-            System.out.println("Added document with ID: " + addedDocRef.get().getUpdateTime());
-        } catch (InterruptedException e) {
-            Throwable causa = e.getCause();
-
-            System.out.println("Tipo de error: " + causa.getClass().getName());
-            System.out.println("Mensaje: " + causa.getMessage());
-        } catch (ExecutionException e) {
-            Throwable causa = e.getCause();
-
-            System.out.println("Tipo de error: " + causa.getClass().getName());
-            System.out.println("Mensaje: " + causa.getMessage());
+            System.out.println("✔ Documento guardado: " + result.get().getUpdateTime());
+        } catch (InterruptedException | ExecutionException e) {
+            System.out.println("❌ Error al guardar en Firebase: " + e.getMessage());
         }
     }
 
-    @SuppressWarnings({ "null", "unchecked" })
+    // ---------------- LISTAR ----------------
     public List<Amigurumi> listarAmigurumi() {
 
-        List<Amigurumi> amigurumis = new ArrayList<>();
+        List<Amigurumi> lista = new ArrayList<>();
 
         ApiFuture<QuerySnapshot> future = db.collection("amigurumis").get();
 
-        List<QueryDocumentSnapshot> documents = null;
-
         try {
-            documents = future.get().getDocuments();
-        } catch (InterruptedException e) {
-            Throwable causa = e.getCause();
+            List<QueryDocumentSnapshot> documents = future.get().getDocuments();
 
-            System.out.println("Tipo de error: " + causa.getClass().getName());
-            System.out.println("Mensaje: " + causa.getMessage());
-        } catch (ExecutionException e) {
-            Throwable causa = e.getCause();
-
-            System.out.println("Tipo de error: " + causa.getClass().getName());
-            System.out.println("Mensaje: " + causa.getMessage());
-        }
-
-        if (!documents.isEmpty()) {
-            for (QueryDocumentSnapshot document : documents) {
-                Amigurumi amigurumi = new Amigurumi();
-                amigurumi.setIdAmigurumi(document.getId().toString());
-                amigurumi.setNombre(document.getData().get("nombre").toString());
-                amigurumi.setDisponibilidad(Boolean.parseBoolean(document.getData().get("disponibilidad").toString()));
-                amigurumi.setIsActivo(Boolean.parseBoolean(document.getData().get("isActivo").toString()));
-                amigurumi.setDescripcion(document.getData().get("descripcion").toString());
-                amigurumi.setFechaCreacion(LocalDate.parse(document.getData().get("fechaCreacion").toString()));
-                amigurumi.setFechaModificacion(LocalDate.parse(document.getData().get("fechaModificacion").toString()));
-                amigurumi.setPrecioBase(Integer.parseInt(document.getData().get("precioBase").toString()));
-                amigurumi.setPartesModificables((List<String>) document.getData().get("partesModificables"));
-                amigurumi.setImagen(document.getData().get("imagen").toString());
-
-                amigurumis.add(amigurumi);
+            if (documents == null || documents.isEmpty()) {
+                return lista;
             }
 
+            for (QueryDocumentSnapshot document : documents) {
+                lista.add(convertir(document));
+            }
+
+        } catch (InterruptedException | ExecutionException e) {
+            System.out.println("❌ Error al listar: " + e.getMessage());
         }
-        return amigurumis;
+
+        return lista;
     }
 
-    @SuppressWarnings({ })
-    public void borrarAmigurumi(String idAmigurumi) {
-        DocumentReference docRef = db.collection("amigurumis").document(String.valueOf(idAmigurumi));
+    // ---------------- BUSCAR ----------------
+    public Amigurumi buscarAmigurumi(String idAmigurumi) {
 
+        DocumentReference docRef = db.collection("amigurumis").document(idAmigurumi);
         ApiFuture<DocumentSnapshot> future = docRef.get();
-          DocumentSnapshot document = null;
+
         try {
-            document = future.get();
-           
+            DocumentSnapshot document = future.get();
 
-        } catch (InterruptedException e) {
-            Throwable causa = e.getCause();
+            if (document.exists()) {
+                return convertir(document);
+            }
 
-            System.out.println("Tipo de error: " + causa.getClass().getName());
-            System.out.println("Mensaje: " + causa.getMessage());
-        } catch (ExecutionException e) {
-            Throwable causa = e.getCause();
-
-            System.out.println("Tipo de error: " + causa.getClass().getName());
-            System.out.println("Mensaje: " + causa.getMessage());
+        } catch (InterruptedException | ExecutionException e) {
+            System.out.println("❌ Error al buscar: " + e.getMessage());
         }
-        Amigurumi amigurumi = obtenerDatosAmigurumi(document);
+
+        return null;
+    }
+
+    // ---------------- ELIMINAR (SOFT DELETE) ----------------
+    public void borrarAmigurumi(String idAmigurumi) {
+
+        Amigurumi amigurumi = buscarAmigurumi(idAmigurumi);
+
+        if (amigurumi == null)
+            return;
 
         amigurumi.setFechaModificacion(LocalDate.now());
         amigurumi.setIsActivo(false);
+
         ingresarAmigurumi(amigurumi);
     }
 
-    public Amigurumi buscarAmigurumi(String idAmigurumi){
-        DocumentReference docRef = db.collection("amigurumis").document(String.valueOf(idAmigurumi));
+    // ---------------- CONVERTIR ----------------
+    private Amigurumi convertir(DocumentSnapshot document) {
 
-        ApiFuture<DocumentSnapshot> future = docRef.get();
-          DocumentSnapshot document = null;
-        try {
-            document = future.get();
-           
-        } catch (InterruptedException e) {
-            Throwable causa = e.getCause();
+        Map<String, Object> data = document.getData();
+        if (data == null)
+            return null;
 
-            System.out.println("Tipo de error: " + causa.getClass().getName());
-            System.out.println("Mensaje: " + causa.getMessage());
-        } catch (ExecutionException e) {
-            Throwable causa = e.getCause();
+        Amigurumi a = new Amigurumi();
 
-            System.out.println("Tipo de error: " + causa.getClass().getName());
-            System.out.println("Mensaje: " + causa.getMessage());
-        }
-        return obtenerDatosAmigurumi(document);
+        a.setIdAmigurumi(document.getId());
+        a.setNombre(String.valueOf(data.get("nombre")));
+        a.setDisponibilidad(Boolean.parseBoolean(String.valueOf(data.get("disponibilidad"))));
+        a.setIsActivo(Boolean.parseBoolean(String.valueOf(data.get("isActivo"))));
+        a.setDescripcion(String.valueOf(data.get("descripcion")));
 
-    }
+        a.setFechaCreacion(LocalDate.parse(String.valueOf(data.get("fechaCreacion"))));
+        a.setFechaModificacion(LocalDate.parse(String.valueOf(data.get("fechaModificacion"))));
 
-    @SuppressWarnings({ "null", "unchecked" })
-    private Amigurumi obtenerDatosAmigurumi(DocumentSnapshot document){
-        Amigurumi amigurumi = new Amigurumi();
+        a.setPrecioBase(Integer.parseInt(String.valueOf(data.get("precioBase"))));
 
-        amigurumi.setIdAmigurumi(document.getId().toString());
-        amigurumi.setNombre(document.getData().get("nombre").toString());
-        amigurumi.setDisponibilidad(Boolean.parseBoolean(document.getData().get("disponibilidad").toString()));
-        amigurumi.setIsActivo(Boolean.parseBoolean(document.getData().get("isActivo").toString()));
-        amigurumi.setDescripcion(document.getData().get("descripcion").toString());
-        amigurumi.setFechaCreacion(LocalDate.parse(document.getData().get("fechaCreacion").toString()));
-        amigurumi.setFechaModificacion(LocalDate.parse(document.getData().get("fechaModificacion").toString()));
-        amigurumi.setPrecioBase(Integer.parseInt(document.getData().get("precioBase").toString()));
-        amigurumi.setPartesModificables((List<String>) document.getData().get("partesModificables"));
-        amigurumi.setImagen(document.getData().get("imagen").toString());
+        a.setPartesModificables((List<String>) data.get("partesModificables"));
 
-        return amigurumi;
+        a.setImagen(String.valueOf(data.get("imagen")));
+
+        return a;
     }
 }

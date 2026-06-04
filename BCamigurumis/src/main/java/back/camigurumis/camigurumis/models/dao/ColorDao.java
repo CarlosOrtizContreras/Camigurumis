@@ -1,7 +1,6 @@
 package back.camigurumis.camigurumis.models.dao;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
@@ -16,164 +15,134 @@ import com.google.cloud.firestore.QueryDocumentSnapshot;
 import com.google.cloud.firestore.QuerySnapshot;
 import com.google.cloud.firestore.WriteResult;
 
-import back.camigurumis.camigurumis.config.FirestoreConfig;
 import back.camigurumis.camigurumis.models.entities.Color;
 
 @Service
 public class ColorDao {
+
     private final Firestore db;
 
-    public ColorDao(FirestoreConfig firestoreConfig) {
-        this.db = firestoreConfig.getFirestore();
+    public ColorDao(Firestore db) {
+        this.db = db;
     }
 
+    // ---------------- INSERTAR ----------------
     public void ingresarColor(Color color) {
-        Map<String, Object> data = new HashMap<>();
-        data.put("idColor", color.getIdColor());
-        data.put("nombre", color.getNombre());
-        data.put("codigoColor", color.getCodigoColor());
-        data.put("isActivo", color.getIsActivo());
-        data.put("descripcion", color.getDescripcion());
-        
-        ApiFuture<WriteResult> addedDocRef = db.collection("colores")
-                .document(String.valueOf(color.getIdColor())).set(data);
+
+        Map<String, Object> data = Map.of(
+                "idColor", color.getIdColor(),
+                "nombre", color.getNombre(),
+                "codigoColor", color.getCodigoColor(),
+                "isActivo", color.getIsActivo(),
+                "descripcion", color.getDescripcion());
 
         try {
-            System.out.println("Added document with ID: " + addedDocRef.get().getUpdateTime());
-        } catch (InterruptedException e) {
-            Throwable causa = e.getCause();
+            ApiFuture<WriteResult> result = db.collection("colores")
+                    .document(color.getIdColor())
+                    .set(data);
 
-            System.out.println("Tipo de error: " + causa.getClass().getName());
-            System.out.println("Mensaje: " + causa.getMessage());
-        } catch (ExecutionException e) {
-            Throwable causa = e.getCause();
+            System.out.println("✔ Color guardado: " + result.get().getUpdateTime());
 
-            System.out.println("Tipo de error: " + causa.getClass().getName());
-            System.out.println("Mensaje: " + causa.getMessage());
+        } catch (InterruptedException | ExecutionException e) {
+            System.out.println("❌ Error guardando color: " + e.getMessage());
         }
     }
 
+    // ---------------- LISTAR ----------------
     public List<Color> listarColores() {
 
         List<Color> colores = new ArrayList<>();
 
-        ApiFuture<QuerySnapshot> future = db.collection("colores").get();
-
-        List<QueryDocumentSnapshot> documents = null;
-
         try {
-            documents = future.get().getDocuments();
-        } catch (InterruptedException e) {
-            Throwable causa = e.getCause();
+            ApiFuture<QuerySnapshot> future = db.collection("colores").get();
+            List<QueryDocumentSnapshot> documents = future.get().getDocuments();
 
-            System.out.println("Tipo de error: " + causa.getClass().getName());
-            System.out.println("Mensaje: " + causa.getMessage());
-        } catch (ExecutionException e) {
-            Throwable causa = e.getCause();
-
-            System.out.println("Tipo de error: " + causa.getClass().getName());
-            System.out.println("Mensaje: " + causa.getMessage());
-        }
-
-        if (!documents.isEmpty()) {
-            for (QueryDocumentSnapshot document : documents) {
-                Color color = new Color();
-                color.setIdColor(document.getId().toString());
-                color.setNombre(document.getData().get("nombre").toString());
-                color.setIsActivo(Boolean.parseBoolean(document.getData().get("isActivo").toString()));
-                color.setDescripcion(document.getData().get("descripcion").toString());
-                color.setCodigoColor(document.getData().get("codigoColor").toString());
-                colores.add(color);
+            if (documents == null || documents.isEmpty()) {
+                return colores;
             }
 
+            for (QueryDocumentSnapshot document : documents) {
+                Color color = convertir(document);
+                if (color != null) {
+                    colores.add(color);
+                }
+            }
+
+        } catch (InterruptedException | ExecutionException e) {
+            System.out.println("❌ Error listando colores: " + e.getMessage());
         }
+
         return colores;
     }
 
-    public void borrarColor(String idColor) {
-        DocumentReference docRef = db.collection("colores").document(String.valueOf(idColor));
+    // ---------------- BUSCAR (ESTE ES EL QUE TE FALTABA) ----------------
+    public Color obtenerColor(String idColor) {
 
-        ApiFuture<DocumentSnapshot> future = docRef.get();
-          DocumentSnapshot document = null;
         try {
-            document = future.get();
-           
+            DocumentSnapshot document = db.collection("colores")
+                    .document(idColor)
+                    .get()
+                    .get();
 
-        } catch (InterruptedException e) {
-            Throwable causa = e.getCause();
+            if (document.exists()) {
+                return convertir(document);
+            }
 
-            System.out.println("Tipo de error: " + causa.getClass().getName());
-            System.out.println("Mensaje: " + causa.getMessage());
-        } catch (ExecutionException e) {
-            Throwable causa = e.getCause();
-
-            System.out.println("Tipo de error: " + causa.getClass().getName());
-            System.out.println("Mensaje: " + causa.getMessage());
+        } catch (InterruptedException | ExecutionException e) {
+            System.out.println("❌ Error buscando color: " + e.getMessage());
         }
-        Color color = obtenerDatosColor(document);
+
+        return null;
+    }
+
+    // ---------------- EXISTE ----------------
+    public Boolean buscarColor(String idColor) {
+
+        try {
+            DocumentSnapshot document = db.collection("colores")
+                    .document(idColor)
+                    .get()
+                    .get();
+
+            return document.exists();
+
+        } catch (InterruptedException | ExecutionException e) {
+            System.out.println("❌ Error verificando color: " + e.getMessage());
+        }
+
+        return false;
+    }
+
+    // ---------------- ELIMINAR (SOFT DELETE) ----------------
+    public void borrarColor(String idColor) {
+
+        Color color = obtenerColor(idColor);
+
+        if (color == null)
+            return;
 
         color.setIsActivo(false);
+
         ingresarColor(color);
     }
 
-    public Color obtenerDatosColor(String idColor) {
-        DocumentReference docRef = db.collection("colores").document(String.valueOf(idColor));
+    // ---------------- CONVERTIR ----------------
+    private Color convertir(DocumentSnapshot document) {
 
-        ApiFuture<DocumentSnapshot> future = docRef.get();
-        DocumentSnapshot document = null;
-        try {
-            document = future.get();
-
-        } catch (InterruptedException e) {
-            Throwable causa = e.getCause();
-
-            System.out.println("Tipo de error: " + causa.getClass().getName());
-            System.out.println("Mensaje: " + causa.getMessage());
-        } catch (ExecutionException e) {
-            Throwable causa = e.getCause();
-
-            System.out.println("Tipo de error: " + causa.getClass().getName());
-            System.out.println("Mensaje: " + causa.getMessage());
+        if (document == null || !document.exists() || document.getData() == null) {
+            return null;
         }
-       return obtenerDatosColor(document);
-    }
 
-    public Boolean buscarColor(String idColor) {
-        DocumentReference docRef = db.collection("colores").document(String.valueOf(idColor));
+        Map<String, Object> data = document.getData();
 
-        ApiFuture<DocumentSnapshot> future = docRef.get();
-        DocumentSnapshot document = null;
-        try {
-            document = future.get();
-
-        } catch (InterruptedException e) {
-            Throwable causa = e.getCause();
-
-            System.out.println("Tipo de error: " + causa.getClass().getName());
-            System.out.println("Mensaje: " + causa.getMessage());
-        } catch (ExecutionException e) {
-            Throwable causa = e.getCause();
-
-            System.out.println("Tipo de error: " + causa.getClass().getName());
-            System.out.println("Mensaje: " + causa.getMessage());
-        }
-        if(document.exists()){
-            return true;
-        }else{
-            return false;
-        }
-    }
-
-
-    private Color obtenerDatosColor(DocumentSnapshot document) {
         Color color = new Color();
-        color.setIdColor(document.getId().toString());
-        color.setNombre(document.getData().get("nombre").toString());
-        color.setIsActivo(Boolean.parseBoolean(document.getData().get("isActivo").toString()));
-        color.setDescripcion(document.getData().get("descripcion").toString());
-        color.setCodigoColor(document.getData().get("codigoColor").toString());
+
+        color.setIdColor(document.getId());
+        color.setNombre(String.valueOf(data.get("nombre")));
+        color.setCodigoColor(String.valueOf(data.get("codigoColor")));
+        color.setIsActivo(Boolean.parseBoolean(String.valueOf(data.get("isActivo"))));
+        color.setDescripcion(String.valueOf(data.get("descripcion")));
 
         return color;
     }
-    
 }
