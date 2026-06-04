@@ -33,7 +33,7 @@ public class FirestoreConfig {
     private Firestore iniciarFirebase() throws IOException {
         if (FirebaseApp.getApps().isEmpty()) { // Evita inicialización múltiple
             FileInputStream serviceAccount = new FileInputStream(
-                    "camigurumis-82d23-firebase-adminsdk-fbsvc-022284bddf.json");
+                    "camigurumis-82d23-firebase-adminsdk-fbsvc-69322628b2.json");
 
             FirebaseOptions options = FirebaseOptions.builder()
                     .setCredentials(GoogleCredentials.fromStream(serviceAccount))
