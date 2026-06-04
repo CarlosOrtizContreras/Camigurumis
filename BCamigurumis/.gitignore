@@ -31,3 +31,6 @@ build/
 
 ### VS Code ###
 .vscode/
+
+# Firebase / Google Cloud credentials
+camigurumis-82d23-firebase-adminsdk-fbsvc-69322628b2.json
