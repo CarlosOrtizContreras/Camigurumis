@@ -10,7 +10,7 @@ export default function AmigurumiCard({ amigurumi, onClick }) {
     <article className="amigurumi-card" onClick={onClick}>
       <div className="amigurumi-img-wrap">
         {imagen
-          ? <img src={`http://localhost:8080/${imagen}`} alt={nombre} className="amigurumi-img" />
+          ? <img src={`https://camigurumis-1.onrender.com/${imagen}`} alt={nombre} className="amigurumi-img" />
           : <div className="amigurumi-img-placeholder">🧸</div>}
         {!disponibilidad && <div className="amigurumi-agotado">Agotado</div>}
       </div>

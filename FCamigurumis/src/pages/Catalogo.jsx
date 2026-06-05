@@ -117,7 +117,7 @@ export default function Catalogo({ setPage }) {
             {/* Imagen */}
             {selected.imagen && (
               <img
-                src={`http://localhost:8080/${selected.imagen}`}
+                src={`https://camigurumis-1.onrender.com/${selected.imagen}`}
                 alt={selected.nombre}
                 className="detalle-img"
               />
